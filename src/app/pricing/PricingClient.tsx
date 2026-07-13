@@ -1,73 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle2, Zap, Rocket, Building2, ArrowRight, HelpCircle, ChevronDown } from "lucide-react";
+import { ArrowRight, HelpCircle, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlowingCard } from "@/components/ui/glowing-card";
-import Link from "next/link";
 import { DIcons } from "dicons";
-
-const plans = [
-  {
-    name: "Starter",
-    icon: Zap,
-    price: "$500",
-    period: "/month",
-    desc: "For startups and small businesses ready to go digital with AI.",
-    color: "#06b6d4",
-    bg: "rgba(6,182,212,0.1)",
-    popular: false,
-    features: [
-      "AI-powered SEO audit & on-page optimisation",
-      "2× social media channels managed",
-      "Meta Ads setup & management (up to $1k ad spend)",
-      "Monthly analytics report",
-      "1 landing page / content update",
-      "WhatsApp Business integration",
-      "Email support (48-hr response)",
-    ],
-  },
-  {
-    name: "Growth",
-    icon: Rocket,
-    price: "$1,500",
-    period: "/month",
-    desc: "Full-stack AI marketing for businesses scaling fast.",
-    color: "#a855f7",
-    bg: "rgba(168,85,247,0.1)",
-    popular: true,
-    features: [
-      "Everything in Starter",
-      "Advanced SEO — technical, off-page & link building",
-      "Google Ads + Meta Ads (up to $5k ad spend)",
-      "AI chatbot development (WhatsApp / web)",
-      "Automated lead-nurturing workflows",
-      "Monthly blog content (4 posts)",
-      "Bi-weekly strategy calls",
-      "Priority support (24-hr response)",
-    ],
-  },
-  {
-    name: "Enterprise",
-    icon: Building2,
-    price: "Custom",
-    period: "",
-    desc: "Bespoke AI systems and dedicated teams for large organisations.",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.1)",
-    popular: false,
-    features: [
-      "Everything in Growth",
-      "Custom LLM / AI agent development",
-      "Multi-channel paid media (unlimited spend)",
-      "Full web or mobile app development",
-      "Algorithmic trading software (PSX / crypto)",
-      "Dedicated account manager",
-      "Weekly executive reporting",
-      "SLA-backed 12-hr response",
-    ],
-  },
-];
+import PricingCards from "@/components/PricingCards";
 
 const addOns = [
   { name: "Extra blog posts", price: "$150/post" },
@@ -132,85 +70,7 @@ export default function PricingClient() {
 
       {/* Pricing Cards */}
       <section className="container mx-auto px-6 mb-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-          {plans.map((plan, i) => {
-            const Icon = plan.icon;
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="relative"
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                    <span className="bg-brand-cyan text-black text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-                <GlowingCard className="h-full">
-                  <div className="p-10 flex flex-col h-full">
-                    <div
-                      className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
-                      style={{ backgroundColor: plan.bg }}
-                    >
-                      <Icon className="w-7 h-7" style={{ color: plan.color }} />
-                    </div>
-
-                    <h2 className="text-2xl font-bold mb-2 text-slate-900 dark:text-white">
-                      {plan.name}
-                    </h2>
-                    <p className="text-sm text-slate-500 dark:text-brand-muted mb-6 leading-relaxed">
-                      {plan.desc}
-                    </p>
-
-                    <div className="flex items-end gap-1 mb-8">
-                      <span className="text-5xl font-bold text-slate-900 dark:text-white">
-                        {plan.price}
-                      </span>
-                      {plan.period && (
-                        <span className="text-brand-muted mb-2">{plan.period}</span>
-                      )}
-                    </div>
-
-                    <ul className="flex flex-col gap-3 mb-10 flex-grow">
-                      {plan.features.map((f, j) => (
-                        <li key={j} className="flex items-start gap-3">
-                          <CheckCircle2
-                            className="w-5 h-5 shrink-0 mt-0.5"
-                            style={{ color: plan.color }}
-                          />
-                          <span className="text-sm text-slate-700 dark:text-white/80 leading-relaxed">
-                            {f}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <a
-                      href={`https://wa.me/923120141581?text=${encodeURIComponent(`Hello BITSOL Marketing! I'd like to order the ${plan.name} plan (${plan.price}${plan.period}). Please get in touch.`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full"
-                    >
-                      <Button
-                        variant={plan.popular ? "brand" : "outline"}
-                        className="w-full rounded-full py-6 text-base font-bold group"
-                      >
-                        <DIcons.WhatsApp className="w-4 h-4 mr-2" />
-                        {plan.name === "Enterprise" ? "Get a Custom Quote" : "Order via WhatsApp"}
-                        <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
-                      </Button>
-                    </a>
-                  </div>
-                </GlowingCard>
-              </motion.div>
-            );
-          })}
-        </div>
+        <PricingCards />
       </section>
 
       {/* Add-Ons */}

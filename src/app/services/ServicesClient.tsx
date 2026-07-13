@@ -7,6 +7,7 @@ import { GlowingCard } from "@/components/ui/glowing-card";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { DIcons } from "dicons";
+import PricingCards from "@/components/PricingCards";
 
 export default function ServicesPage() {
   return (
@@ -93,6 +94,48 @@ export default function ServicesPage() {
               </GlowingCard>
             </motion.div>
           ))}
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="container mx-auto px-6">
+        <div className="text-center mb-16">
+          <motion.p
+            initial={{ opacity: 0, y: -10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-xs font-bold uppercase tracking-widest text-brand-cyan mb-4"
+          >
+            Transparent Pricing — No Hidden Fees
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="text-4xl md:text-6xl font-bold mb-6 text-slate-900 dark:text-white"
+          >
+            Simple, Transparent <span className="text-gradient">Pricing</span>
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-lg text-black dark:text-brand-muted max-w-2xl mx-auto"
+          >
+            Choose the package that fits your growth stage. Every plan includes onboarding, monthly reporting, and access to our AI toolkit.
+          </motion.p>
+        </div>
+
+        <PricingCards />
+
+        <div className="text-center mt-14">
+          <Link href="/pricing">
+            <Button variant="outline" className="rounded-full px-8 py-6 text-base font-bold group">
+              View Full Pricing, Add-Ons &amp; FAQ
+              <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </Link>
         </div>
       </section>
     </div>
