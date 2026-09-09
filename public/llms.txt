@@ -25,6 +25,23 @@
 - https://bitsolmarketing.com/digital-marketing-agency-lahore: Digital marketing services in Lahore, Pakistan
 - https://bitsolmarketing.com/digital-marketing-agency-islamabad: Digital marketing services in Islamabad, Pakistan
 
+## Cornerstone Guides
+- https://bitsolmarketing.com/blog/google-maps-seo-pakistan-rank-local-3-pack: How Google Maps and the local 3-pack rank businesses in Pakistan — relevance, distance and prominence, geo-grid measurement, category strategy, pin accuracy
+- https://bitsolmarketing.com/blog/best-seo-agency-pakistan: How to evaluate an SEO agency in Pakistan — real deliverables, proposal auditing, reporting standards, why ranking guarantees signal trouble
+- https://bitsolmarketing.com/blog/seo-cost-pakistan: What SEO costs in Pakistan — pricing models, the seven factors that move price, what cheap SEO actually buys
+- https://bitsolmarketing.com/blog/best-digital-marketing-agency-pakistan: Buyer's guide to choosing a digital marketing agency in Pakistan — agency types, pricing structures, red flags, 60-day pilot structure
+- https://bitsolmarketing.com/blog/digital-marketing-strategy-pakistan: Five-layer digital marketing strategy framework for Pakistani businesses, including the WhatsApp conversion layer
+- https://bitsolmarketing.com/blog/whatsapp-automation-pakistani-businesses: Complete operational guide to WhatsApp automation in Pakistan — what to automate first, compliance rules, sector examples
+- https://bitsolmarketing.com/blog/whatsapp-chatbot-pricing-pakistan: The four separate costs in WhatsApp chatbot pricing — Meta messaging charges, provider fees, build and maintenance
+- https://bitsolmarketing.com/blog/whatsapp-api-vs-whatsapp-business-app: Comparison of the WhatsApp Business app and Business API, and the signals that mean it is time to upgrade
+- https://bitsolmarketing.com/blog/best-ai-marketing-agency-pakistan: How to tell genuine AI marketing capability from AI-washing
+- https://bitsolmarketing.com/blog/ai-business-automation-pakistan: Which business processes are worth automating in Pakistan and which are not
+- https://bitsolmarketing.com/blog/google-ads-agency-pakistan: What competent Google Ads management looks like, including a seven-point self-audit
+- https://bitsolmarketing.com/blog/ecommerce-website-development-pakistan: Building an online store that handles cash on delivery, courier integration and reconciliation
+- https://bitsolmarketing.com/blog/crm-development-company-pakistan: When to build a custom CRM versus configure an existing one, and why WhatsApp integration decides adoption
+- https://bitsolmarketing.com/blog/digital-marketing-agency-faisalabad: Digital marketing for Faisalabad's textile, manufacturing and export economy
+- https://bitsolmarketing.com/blog/digital-marketing-agency-sahiwal: Digital marketing for Sahiwal businesses, including education and local retail
+
 ## Services Summary
 BITSOL Marketing offers: AI automation (custom LLM agents, WhatsApp chatbots, n8n workflows), digital marketing (Meta Ads, Google Ads, social media), SEO (technical, local, content), web development (Next.js, React, e-commerce), mobile apps (Flutter, iOS, Android), and algorithmic trading software (PSX, crypto).
 

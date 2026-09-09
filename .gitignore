@@ -47,3 +47,4 @@ next-env.d.ts
 nextjs-dev.log
 *nextjs-dev.log
 
+.preview/

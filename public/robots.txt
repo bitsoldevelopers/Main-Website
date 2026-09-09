@@ -1,5 +1,8 @@
 # BITSOL Marketing — robots.txt
 # https://bitsolmarketing.com
+#
+# NOTE: this static file takes precedence over src/app/robots.ts in Next.js.
+# Any rule change must be made HERE, not in robots.ts, or it will not go live.
 
 User-agent: *
 Allow: /
@@ -12,11 +15,68 @@ Disallow: /api/
 Disallow: /_next/
 Disallow: /static/
 
-# Allow specific API routes needed for SEO (sitemap, feeds)
-Allow: /api/blog/
+# ─── Search engine crawlers ──────────────────────────────────────────────────
+User-agent: Googlebot
+Allow: /
 
-# Crawl-delay for well-behaved bots (not enforced by Google)
-Crawl-delay: 10
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# ─── Social preview crawlers ─────────────────────────────────────────────────
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+# ─── AI crawlers — explicitly invited for citation indexing ──────────────────
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Bytespider
+Allow: /
 
 # Sitemaps
 Sitemap: https://bitsolmarketing.com/sitemap.xml
