@@ -78,8 +78,6 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST https://bitsolmarketing.com/api/admin/stagger-dates -H \"Content-Type: application/json\" -d '{\"secret\":\"stagger2026\"}')",
       "Bash(curl -s -X POST https://bitsolmarketing.com/api/admin/stagger-dates -H \"Content-Type: application/json\" -d '{\"secret\":\"stagger2026\"}')",
       "Bash(rm \"d:/BITSOL Marketing Private Limited/bitsol-frontend/src/app/api/admin/stagger-dates/route.ts\")",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X PATCH \"https://bitsolmarketing.com/api/blog/google-ads-management-pakistan-maximum-roi-ppc-2026\" -H \"Content-Type: application/json\" -H \"x-api-key: bitsol-seo-agent-2026-secure-key\" -d '{\"image\":\"https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?w=1200&q=80&auto=format&fit=crop\"}')",
-      "Bash(curl -s -L -o /dev/null -w \"%{http_code}\" -X PATCH \"https://bitsolmarketing.com/api/blog/google-ads-management-pakistan-maximum-roi-ppc-2026\" -H \"Content-Type: application/json\" -H \"x-api-key: bitsol-seo-agent-2026-secure-key\" -d '{\"image\":\"test\"}')",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://bitsolmarketing.com/api/blog/health\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://bitsolmarketing.com/api/blog\")",
       "Bash(node scripts/publish-new-10-articles.mjs)",
