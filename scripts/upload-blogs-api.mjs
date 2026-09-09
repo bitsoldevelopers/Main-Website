@@ -2,7 +2,7 @@ import { blogs } from "./seed-blogs.mjs";
 import { articles } from "./publish-10-articles.mjs";
 
 const API_URL = "https://bitsolmarketing.com/api/blog";
-const API_KEY = "bitsol-seo-agent-2026-secure-key";
+const API_KEY = process.env.BLOG_API_KEY;
 
 const allPosts = [...blogs, ...articles];
 

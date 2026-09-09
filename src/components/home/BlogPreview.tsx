@@ -34,7 +34,7 @@ export default function BlogPreview({ posts: initialPosts }: { posts: Post[] }) 
 
   useEffect(() => {
     if (initialPosts.length > 0) return;
-    fetch("/api/blog?limit=3")
+    fetch("/api/blog?limit=3&full=1")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) setPosts(data);

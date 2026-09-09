@@ -6,7 +6,7 @@
  */
 
 const API_BASE = "https://bitsolmarketing.com/api/blog";
-const API_KEY  = "bitsol-seo-agent-2026-secure-key";
+const API_KEY  = process.env.BLOG_API_KEY;
 
 // Curated Unsplash photo IDs mapped to each slug.
 // Format: https://images.unsplash.com/photo-<ID>?w=1200&q=80&auto=format&fit=crop

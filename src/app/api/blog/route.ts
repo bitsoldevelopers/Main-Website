@@ -5,6 +5,9 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") ?? "100", 10);
+    // Full article HTML is opt-in. Returning it for every post made this
+    // endpoint grow without bound (~1.6MB across 175 posts) and time out.
+    const includeContent = searchParams.get("full") === "1";
 
     const posts = await prisma.blog.findMany({
       where: { published: true },
@@ -17,7 +20,7 @@ export async function GET(req: Request) {
         author: true,
         image: true,
         excerpt: true,
-        content: true,
+        content: includeContent,
         tags: true,
         createdAt: true,
       },

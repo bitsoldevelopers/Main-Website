@@ -19,7 +19,7 @@ try {
   });
 } catch {}
 
-const API_KEY = process.env.BLOG_API_KEY || "bitsol-seo-agent-2026-secure-key";
+const API_KEY = process.env.BLOG_API_KEY;
 const BASE_URL = "https://bitsolmarketing.com";
 const AUTHOR = "BITSOL Marketing Team";
 

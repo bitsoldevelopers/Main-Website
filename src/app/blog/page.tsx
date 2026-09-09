@@ -10,18 +10,40 @@ import Image from "next/image";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "Blog | AI Marketing Insights & SEO Strategies",
-  description:
-    "Expert insights on AI digital marketing, SEO strategies, automation, and business growth from the BITSOL MARKETING team.",
-  alternates: { canonical: "https://bitsolmarketing.com/blog" },
-  openGraph: {
-    title: "Blog | BITSOL MARKETING",
+/** Posts fetched per page. Keeps the listing query small as the archive grows. */
+const PAGE_SIZE = 12;
+
+function pageFrom(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const n = parseInt(raw ?? "1", 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}): Promise<Metadata> {
+  const page = pageFrom((await searchParams).page);
+  const base = "https://bitsolmarketing.com/blog";
+  const url = page > 1 ? `${base}?page=${page}` : base;
+  const suffix = page > 1 ? ` — Page ${page}` : "";
+
+  return {
+    title: `Blog | AI Marketing Insights & SEO Strategies${suffix}`,
     description:
-      "Expert insights on AI digital marketing, SEO, automation and business growth.",
-    url: "https://bitsolmarketing.com/blog",
-  },
-};
+      "Expert insights on AI digital marketing, SEO strategies, automation, and business growth from the BITSOL MARKETING team.",
+    // Self-referencing canonical per page so paginated results are not
+    // collapsed onto page 1.
+    alternates: { canonical: url },
+    openGraph: {
+      title: `Blog | BITSOL MARKETING${suffix}`,
+      description:
+        "Expert insights on AI digital marketing, SEO, automation and business growth.",
+      url,
+    },
+  };
+}
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
@@ -41,7 +63,11 @@ function formatDate(date: Date): string {
   }).format(new Date(date));
 }
 
-export default async function BlogPage() {
+export default async function BlogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   type PostRow = {
     id: string;
     title: string;
@@ -54,27 +80,43 @@ export default async function BlogPage() {
     createdAt: Date;
   };
 
+  const page = pageFrom((await searchParams).page);
+
   let posts: any[] = [];
+  let totalPosts = 0;
 
   try {
-    posts = await prisma.blog.findMany({
-      where: { published: true },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        author: true,
-        image: true,
-        excerpt: true,
-        content: true,
-        tags: true,
-        createdAt: true,
-      },
-    });
+    // Paginated. Previously this fetched every published post including its
+    // full HTML content (~1.6MB across 175 posts) purely to derive read time
+    // and an excerpt fallback, which grew linearly with the archive.
+    [posts, totalPosts] = await Promise.all([
+      prisma.blog.findMany({
+        where: { published: true },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          author: true,
+          image: true,
+          excerpt: true,
+          content: true,
+          tags: true,
+          createdAt: true,
+        },
+      }),
+      prisma.blog.count({ where: { published: true } }),
+    ]);
   } catch (err) {
     console.error("[Blog] Database query failed:", err);
   }
+
+  const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
+  const pageHref = (n: number) => (n <= 1 ? "/blog" : `/blog?page=${n}`);
 
   return (
     <div className="pt-32 pb-24">
@@ -181,6 +223,45 @@ export default async function BlogPage() {
               );
             })}
           </div>
+        )}
+
+        {/* Pagination — real anchors so crawlers can follow the archive */}
+        {totalPages > 1 && (
+          <nav
+            aria-label="Blog pagination"
+            className="flex items-center justify-center gap-3 mt-16 flex-wrap"
+          >
+            {hasPrev && (
+              <Link
+                href={pageHref(page - 1)}
+                rel="prev"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "rounded-full px-6"
+                )}
+              >
+                Previous
+              </Link>
+            )}
+
+            <span className="text-sm text-brand-muted px-4">
+              Page {page} of {totalPages}
+              <span className="hidden sm:inline"> · {totalPosts} articles</span>
+            </span>
+
+            {hasNext && (
+              <Link
+                href={pageHref(page + 1)}
+                rel="next"
+                className={cn(
+                  buttonVariants({ variant: "brand" }),
+                  "rounded-full px-6"
+                )}
+              >
+                Next
+              </Link>
+            )}
+          </nav>
         )}
       </section>
     </div>

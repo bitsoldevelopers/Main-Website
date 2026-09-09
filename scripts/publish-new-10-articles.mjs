@@ -5,7 +5,7 @@
  */
 
 const API_URL = "https://bitsolmarketing.com/api/blog";
-const API_KEY = "bitsol-seo-agent-2026-secure-key";
+const API_KEY = process.env.BLOG_API_KEY;
 
 const articles = [
   // ─── 1 ──────────────────────────────────────────────────────────────────────
