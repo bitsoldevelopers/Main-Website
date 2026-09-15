@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { GlowingCard } from "@/components/ui/glowing-card";
 import { ContactForm } from "@/components/ContactForm";
-import { Mail, Phone, MapPin, MessageSquare } from "lucide-react";
+import { Mail, Phone, MapPin, MessageSquare, Clock } from "lucide-react";
 
 export default function ContactPage() {
   return (
@@ -56,6 +56,23 @@ export default function ContactPage() {
               </div>
             ))}
 
+            {/* Office hours — matches the opening hours in the site's
+                Organization schema. */}
+            <div className="flex gap-6 p-8 bg-white/5 border border-white/10 rounded-3xl">
+              <div className="w-14 h-14 rounded-2xl bg-brand-cyan/10 flex items-center justify-center shrink-0">
+                <Clock className="w-7 h-7 text-brand-cyan" />
+              </div>
+              <div>
+                <h4 className="text-slate-900 dark:text-white font-bold text-lg mb-1">Office Hours</h4>
+                <p className="text-black dark:text-brand-white font-medium mb-1">
+                  Monday to Friday, 9:00 AM – 6:00 PM
+                </p>
+                <p className="text-brand-muted text-sm">
+                  Pakistan Standard Time (PKT). Message us on WhatsApp any time and we reply the next working morning.
+                </p>
+              </div>
+            </div>
+
             {/* Specialized Channels */}
             <div className="p-8 bg-brand-purple/5 border border-brand-purple/10 rounded-3xl">
               <h4 className="text-white font-bold text-xl mb-6 flex items-center gap-2">
@@ -97,6 +114,25 @@ export default function ContactPage() {
                 <ContactForm />
               </div>
             </GlowingCard>
+
+            {/* Head office map */}
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Find Our Head Office</h2>
+              <p className="text-brand-muted mb-6">
+                83/3 C KB Commercial, Phase 1, DHA, Lahore, Punjab 54792, Pakistan.
+              </p>
+              <div className="overflow-hidden rounded-3xl border border-white/10">
+                <iframe
+                  title="BITSOL Marketing head office in DHA Phase 1, Lahore"
+                  src="https://www.google.com/maps?q=83%2F3%20C%20KB%20Commercial%2C%20Phase%201%2C%20DHA%2C%20Lahore%2C%20Pakistan&output=embed"
+                  width="100%"
+                  height="360"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  style={{ border: 0 }}
+                />
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>
