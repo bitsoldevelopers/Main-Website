@@ -1,5 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
+
+/** Blog posts are served from the ISR cache — refresh the pages a write affects. */
+function revalidatePost(slug: string) {
+  revalidatePath(`/blog/${slug}`);
+  revalidatePath("/blog");
+  revalidatePath("/");
+}
 
 export async function GET(
   _req: Request,
@@ -34,6 +42,10 @@ export async function PATCH(
       where: { slug },
       data: body,
     });
+
+    revalidatePost(slug);
+    if (updated.slug !== slug) revalidatePost(updated.slug);
+
     return NextResponse.json(updated);
   } catch {
     return NextResponse.json({ error: "Failed to update post" }, { status: 500 });
@@ -51,6 +63,9 @@ export async function DELETE(
     }
     const { slug } = await params;
     await prisma.blog.delete({ where: { slug } });
+
+    revalidatePost(slug);
+
     return NextResponse.json({ deleted: true });
   } catch {
     return NextResponse.json({ error: "Failed to delete post" }, { status: 500 });

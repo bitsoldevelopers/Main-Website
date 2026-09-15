@@ -1,14 +1,32 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Calendar, User, Clock, Tag } from "lucide-react";
 import { ContactForm } from "@/components/ContactForm";
 import { GlowingCard } from "@/components/ui/glowing-card";
+import { JsonLd } from "@/components/JsonLd";
+import { cleanArticleHtml, resolveAuthor } from "@/lib/blog-content";
+import { clampDescription, DEFAULT_OG_IMAGE, SITE_URL } from "@/lib/seo";
 import type { Metadata } from "next";
 import Image from "next/image";
-import Script from "next/script";
 
-export const dynamic = "force-dynamic";
+// Articles were rendered on every request, which meant a database query and a
+// full render per hit and no cacheable HTML at the CDN. Serve them from the
+// ISR cache instead; writes through the blog API and the admin revalidate the
+// affected URL, and anything else is picked up within the hour.
+export const revalidate = 3600;
+
+// Empty list: nothing is prerendered at build time, each post is generated on
+// first request and then cached.
+export async function generateStaticParams() {
+  return [];
+}
+
+/** Deduplicates the query between generateMetadata and the page render. */
+const getPost = cache(async (slug: string) => prisma.blog.findUnique({ where: { slug } }));
+
+const BRAND_SUFFIX = " | BITSOL Marketing";
 
 export async function generateMetadata({
   params,
@@ -16,33 +34,40 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-
-  let post: any = null;
-  try {
-    post = await prisma.blog.findUnique({ where: { slug } });
-  } catch (err) {
-    console.error("[Blog Meta] Database query failed:", err);
-  }
+  const post = await getPost(slug);
 
   if (!post) return {};
 
-  const description =
-    post.metaDescription || post.excerpt || post.title;
+  const summary = post.metaDescription || post.excerpt || post.title;
+  const description = clampDescription(summary);
+  const url = `${SITE_URL}/blog/${slug}`;
+  const images = post.image ? [{ url: post.image }] : [DEFAULT_OG_IMAGE];
 
   return {
-    title: post.title,
+    // Most article titles are already long. Appending the brand pushed them
+    // past what Google shows, so it is only added when it still fits.
+    title: {
+      absolute:
+        post.title.length + BRAND_SUFFIX.length <= 60
+          ? `${post.title}${BRAND_SUFFIX}`
+          : post.title,
+    },
     description,
-    alternates: { canonical: `https://bitsolmarketing.com/blog/${slug}` },
+    alternates: { canonical: url },
     openGraph: {
+      type: "article",
       title: post.title,
       description,
-      url: `https://bitsolmarketing.com/blog/${slug}`,
-      images: post.image ? [{ url: post.image }] : [],
+      url,
+      images,
+      publishedTime: new Date(post.createdAt).toISOString(),
+      modifiedTime: new Date(post.updatedAt).toISOString(),
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description,
+      images: images.map((image) => image.url),
     },
   };
 }
@@ -52,6 +77,7 @@ function formatDate(date: Date): string {
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: "Asia/Karachi",
   }).format(new Date(date));
 }
 
@@ -67,51 +93,55 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  let post: any = null;
-  try {
-    post = await prisma.blog.findUnique({ where: { slug } });
-  } catch (err) {
-    console.error("[Blog] Database query failed:", err);
-  }
+  // Deliberately not wrapped in try/catch: a database blip should fail the
+  // render so the cached page is kept, rather than caching a 404.
+  const post = await getPost(slug);
 
   if (!post) notFound();
 
-  const firstTag = post.tags?.[0] ?? "AI Marketing";
+  const tags = Array.isArray(post.tags) ? (post.tags as string[]) : [];
+  const firstTag = tags[0] ?? "AI Marketing";
+  const author = resolveAuthor(post.author);
+  const content = cleanArticleHtml(post.content, post.title);
 
   const articleSchema = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title,
-    description: post.metaDescription || post.excerpt || post.title,
-    author: {
-      "@type": "Person",
-      name: post.author?.name || post.author || "Muhammad Adnan Bashir",
-      url: "https://bitsolmarketing.com/about",
-    },
+    description: clampDescription(post.metaDescription || post.excerpt || post.title),
+    author: author.schema,
     publisher: {
       "@type": "Organization",
-      name: "BITSOL MARKETING",
+      "@id": `${SITE_URL}/#organization`,
+      name: "BITSOL Marketing",
       logo: {
         "@type": "ImageObject",
-        url: "https://bitsolmarketing.com/logo.png",
+        url: `${SITE_URL}/logo.png`,
       },
     },
     datePublished: new Date(post.createdAt).toISOString(),
     dateModified: new Date(post.updatedAt).toISOString(),
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `https://bitsolmarketing.com/blog/${slug}`,
+      "@id": `${SITE_URL}/blog/${slug}`,
     },
     ...(post.image && { image: post.image }),
   };
 
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Blog", item: `${SITE_URL}/blog` },
+      { "@type": "ListItem", position: 3, name: post.title, item: `${SITE_URL}/blog/${slug}` },
+    ],
+  };
+
   return (
     <>
-      <Script
-        id="article-schema"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
-      />
+      <JsonLd data={articleSchema} />
+      <JsonLd data={breadcrumbSchema} />
 
       <div className="pt-32 pb-24">
         <div className="container mx-auto px-6 max-w-4xl">
@@ -137,7 +167,7 @@ export default async function BlogPostPage({
               </span>
               <span className="flex items-center gap-1.5 text-xs text-brand-muted">
                 <User className="w-3 h-3" />
-                {post.author?.name || post.author || "BITSOL Team"}
+                {author.name}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-brand-muted">
                 <Clock className="w-3 h-3" />
@@ -172,13 +202,13 @@ export default async function BlogPostPage({
           {/* Article Content */}
           <article
             className="blog-content"
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            dangerouslySetInnerHTML={{ __html: content }}
           />
 
           {/* Tags */}
-          {post.tags && post.tags.length > 0 && (
+          {tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-12 pt-8 border-t border-slate-200 dark:border-white/10">
-              {post.tags.map((tag: string) => (
+              {tags.map((tag: string) => (
                 <span
                   key={tag}
                   className="text-xs font-bold uppercase tracking-tighter px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-brand-muted border border-slate-200 dark:border-white/10"

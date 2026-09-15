@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 export async function GET(req: Request) {
   try {
@@ -63,6 +64,12 @@ export async function POST(req: Request) {
         published: true,
       },
     });
+
+    // Blog posts are served from the ISR cache, so publish the new one now
+    // instead of waiting for the next revalidation window.
+    revalidatePath(`/blog/${post.slug}`);
+    revalidatePath("/blog");
+    revalidatePath("/");
 
     return NextResponse.json(post, { status: 201 });
   } catch (err: unknown) {

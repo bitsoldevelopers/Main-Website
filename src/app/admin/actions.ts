@@ -43,6 +43,8 @@ export async function createBlog(formData: FormData) {
     
     revalidatePath("/admin");
     revalidatePath("/blog");
+    revalidatePath(`/blog/${post.slug}`);
+    revalidatePath("/");
     return { success: true, data: post };
   } catch (error: any) {
     if (error.message.includes("Unique constraint")) {
@@ -54,9 +56,11 @@ export async function createBlog(formData: FormData) {
 
 export async function deleteBlog(id: string) {
   try {
-    await prisma.blog.delete({ where: { id } });
+    const deleted = await prisma.blog.delete({ where: { id } });
     revalidatePath("/admin");
     revalidatePath("/blog");
+    revalidatePath(`/blog/${deleted.slug}`);
+    revalidatePath("/");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };

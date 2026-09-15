@@ -129,16 +129,17 @@ Excerpt: ${topic.excerpt}
 
 ARTICLE REQUIREMENTS:
 - 1200-1800 words, written for Pakistani business owners and entrepreneurs
-- Full HTML only (no markdown) — use <h1>, <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <table>, <figure>, <blockquote>
+- Full HTML only (no markdown) — use <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <table>, <figure>, <blockquote>
+- Do NOT include an <h1>: the page template renders the article title as the page's only H1
 - Include the hero image exactly once at the top:
   <figure style="margin:0 0 2rem 0"><img src="${imageUrl}" alt="${topic.primaryKeyword}" style="width:100%;border-radius:12px;"><figcaption style="text-align:center;color:#666;font-size:0.85rem;margin-top:0.5rem">${topic.primaryKeyword} — BITSOL Marketing</figcaption></figure>
-- Natural keyword density — use primary keyword in H1, first paragraph, 2+ H2s, and conclusion
-- Include at least one call-to-action linking to https://bitsolmarketing.com or https://conversiq.bitsolmarketing.com (relevant to niche)
+- Natural keyword density — use primary keyword in the first paragraph, 2+ H2s, and conclusion
+- Include at least one call-to-action linking to https://bitsolmarketing.com/contact, the most relevant service page under https://bitsolmarketing.com/services/, or https://conversiq.bitsolmarketing.com (relevant to niche)
 - Add a styled CTA box near the end:
   <div style="background:linear-gradient(135deg,#0a2463,#1e88e5);color:#fff;padding:2rem;border-radius:12px;text-align:center;margin:2rem 0">
     <h3 style="margin:0 0 0.75rem">Ready to Grow Your Business?</h3>
     <p style="margin:0 0 1rem">Get a FREE consultation with BITSOL Marketing today.</p>
-    <a href="https://bitsolmarketing.com" style="background:#fff;color:#0a2463;padding:0.75rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:700">Contact Us Now →</a>
+    <a href="https://bitsolmarketing.com/contact" style="background:#fff;color:#0a2463;padding:0.75rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:700">Contact Us Now →</a>
   </div>
 - Mention Pakistan, Pakistani businesses, or local context at least 3 times
 - End with an <h2>Conclusion</h2> section
