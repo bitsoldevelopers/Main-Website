@@ -74,9 +74,6 @@ export const metadata: Metadata = {
   verification: {
     google: "5_RFeyfgeVNvRbrwLfiLK_2nnc81N04BypWiVuQDPgE",
   },
-  other: {
-    "google-adsense-account": "ca-pub-1462759459302506",
-  },
   robots: {
     index: true,
     follow: true,
@@ -256,12 +253,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             gtag('config', 'G-J473YSMZKE');
           `}
         </Script>
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1462759459302506"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
       </head>
       <body
         className={`${montserrat.variable} font-sans antialiased bg-white dark:bg-[#050816] text-slate-900 dark:text-white transition-colors duration-300`}
