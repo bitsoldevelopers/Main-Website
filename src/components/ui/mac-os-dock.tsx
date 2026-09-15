@@ -258,7 +258,16 @@ const MacOSDock: React.FC<MacOSDockProps> = ({
               ref={(el) => { iconRefs.current[index] = el; }}
               className="absolute cursor-pointer flex flex-col items-center justify-end group/item"
               title={app.name}
+              role="button"
+              tabIndex={0}
+              aria-label={app.name}
               onClick={() => handleAppClick(app.id, index)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleAppClick(app.id, index);
+                }
+              }}
               style={{
                 left: `${position - scaledSize / 2}px`,
                 bottom: '0px',

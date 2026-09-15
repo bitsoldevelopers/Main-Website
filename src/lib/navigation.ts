@@ -162,8 +162,9 @@ export const primaryNav: NavItem[] = [
   { name: "Services", href: "/services", columns: servicesMenu },
   { name: "Solutions", href: "/ai-solutions", columns: solutionsMenu },
   { name: "Training", href: "/courses", columns: trainingMenu },
+  // "Case Studies" used to sit here pointing at /portfolio as well — two menu
+  // items for one page.
   { name: "Portfolio", href: "/portfolio" },
-  { name: "Case Studies", href: "/portfolio" },
   { name: "Blog", href: "/blog" },
   { name: "Contact", href: "/contact" },
 ];

@@ -123,6 +123,7 @@ export default function Footer() {
             aria-label="WhatsApp"
             href="https://wa.me/923103175175"
             target="_blank"
+            rel="noopener noreferrer"
             className={Underline}
           >
             <DIcons.WhatsApp className="h-5 w-5" />
@@ -131,6 +132,7 @@ export default function Footer() {
             aria-label="LinkedIn"
             href="https://www.linkedin.com/company/bitsolpvtltd/"
             target="_blank"
+            rel="noopener noreferrer"
             className={Underline}
           >
             <DIcons.LinkedIn className="h-5 w-5" />
@@ -139,6 +141,7 @@ export default function Footer() {
             aria-label="Instagram"
             href="https://www.instagram.com/bitsol_marketing/"
             target="_blank"
+            rel="noopener noreferrer"
             className={Underline}
           >
             <DIcons.Instagram className="h-5 w-5" />
@@ -147,6 +150,7 @@ export default function Footer() {
             aria-label="Facebook"
             href="https://www.facebook.com/bitsolmarketing/"
             target="_blank"
+            rel="noopener noreferrer"
             className={Underline}
           >
             <DIcons.Facebook className="h-5 w-5" />

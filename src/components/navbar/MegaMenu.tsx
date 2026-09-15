@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import type { MegaMenuColumn } from "@/lib/navigation";
 
 interface MegaMenuProps {
   columns: MegaMenuColumn[];
+  /** Landing page for the section, so the dropdown itself is reachable. */
+  hub?: { name: string; href: string };
   onNavigate: () => void;
 }
 
@@ -26,7 +29,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-export function MegaMenu({ columns, onNavigate }: MegaMenuProps) {
+export function MegaMenu({ columns, hub, onNavigate }: MegaMenuProps) {
   return (
     <motion.div
       variants={containerVariants}
@@ -36,7 +39,8 @@ export function MegaMenu({ columns, onNavigate }: MegaMenuProps) {
       className="absolute left-1/2 top-full z-40 mt-3 w-[92vw] max-w-5xl -translate-x-1/2"
       role="menu"
     >
-      <div className="grid grid-cols-1 gap-6 rounded-[22px] border border-white/15 bg-white/90 p-8 shadow-[0_25px_70px_rgba(0,0,0,0.15)] backdrop-blur-2xl dark:bg-[#0B1120]/90 dark:border-white/10 md:grid-cols-3">
+      <div className="rounded-[22px] border border-white/15 bg-white/90 p-8 shadow-[0_25px_70px_rgba(0,0,0,0.15)] backdrop-blur-2xl dark:bg-[#0B1120]/90 dark:border-white/10">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {columns.map((column) => (
           <div key={column.heading}>
             <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-[#185FA5] dark:text-brand-cyan">
@@ -68,6 +72,20 @@ export function MegaMenu({ columns, onNavigate }: MegaMenuProps) {
             </ul>
           </div>
         ))}
+      </div>
+
+      {hub && (
+        <div className="mt-6 border-t border-slate-200/80 pt-4 dark:border-white/10">
+          <Link
+            href={hub.href}
+            onClick={onNavigate}
+            className="group/hub inline-flex items-center gap-1.5 text-sm font-semibold text-[#185FA5] dark:text-brand-cyan"
+          >
+            View all {hub.name}
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/hub:translate-x-0.5" />
+          </Link>
+        </div>
+      )}
       </div>
     </motion.div>
   );

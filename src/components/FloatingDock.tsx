@@ -21,11 +21,34 @@ export function FloatingDock() {
   const { theme, setTheme } = useTheme();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const router = useRouter();
 
   // Prevent hydration mismatch by only rendering after mount
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // The dock is fixed to the bottom of the viewport, where on phones it sat on
+  // top of body text and buttons. Slide it out of the way while the visitor
+  // scrolls down and bring it back as soon as they scroll up.
+  useEffect(() => {
+    const narrow = window.matchMedia("(max-width: 1023px)");
+    let lastY = window.scrollY;
+
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (narrow.matches) {
+        if (y > lastY + 8 && y > 140) setHidden(true);
+        else if (y < lastY - 8) setHidden(false);
+      } else {
+        setHidden(false);
+      }
+      lastY = y;
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   if (!mounted) return null;
@@ -119,7 +142,11 @@ export function FloatingDock() {
         )}
       </AnimatePresence>
 
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[250]">
+      <div
+        className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[250] transition-transform duration-300 ${
+          hidden ? "translate-y-[180%]" : ""
+        }`}
+      >
         <MacOSDock 
           apps={dockApps} 
           onAppClick={handleAppClick}

@@ -184,6 +184,10 @@ export default function Navbar() {
               >
                 <MegaMenu
                   columns={primaryNav.find((i) => i.name === openMenu)?.columns ?? []}
+                  hub={(() => {
+                    const item = primaryNav.find((i) => i.name === openMenu);
+                    return item ? { name: item.name, href: item.href } : undefined;
+                  })()}
                   onNavigate={() => setOpenMenu(null)}
                 />
               </div>
