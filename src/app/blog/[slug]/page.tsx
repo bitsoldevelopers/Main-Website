@@ -7,6 +7,7 @@ import { ContactForm } from "@/components/ContactForm";
 import { GlowingCard } from "@/components/ui/glowing-card";
 import { JsonLd } from "@/components/JsonLd";
 import { cleanArticleHtml, resolveAuthor } from "@/lib/blog-content";
+import { relatedLinks } from "@/lib/blog-links";
 import { clampDescription, DEFAULT_OG_IMAGE, SITE_URL } from "@/lib/seo";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -103,6 +104,7 @@ export default async function BlogPostPage({
   const firstTag = tags[0] ?? "AI Marketing";
   const author = resolveAuthor(post.author);
   const content = cleanArticleHtml(post.content, post.title);
+  const related = relatedLinks(post);
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -217,6 +219,35 @@ export default async function BlogPostPage({
                 </span>
               ))}
             </div>
+          )}
+
+          {/* Where this article leads — posts previously linked only to the
+              homepage, so nothing reached the service and city pages. */}
+          {related.length > 0 && (
+            <section className="mt-16" aria-labelledby="related-services">
+              <h2
+                id="related-services"
+                className="text-2xl font-bold text-slate-900 dark:text-white mb-6"
+              >
+                Related services
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {related.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="group rounded-2xl border border-slate-200 p-5 transition-colors hover:border-brand-cyan dark:border-white/10"
+                  >
+                    <span className="block font-bold text-slate-900 group-hover:text-brand-cyan dark:text-white">
+                      {link.title}
+                    </span>
+                    <span className="mt-1 block text-sm text-slate-600 dark:text-brand-muted">
+                      {link.desc}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
 
           {/* CTA */}
