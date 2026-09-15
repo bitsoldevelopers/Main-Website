@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
+
+export const metadata: Metadata = {
+  title: "Cookie Policy",
+  description:
+    "How BITSOL Marketing uses essential, performance and analytics cookies on this website, and how you can manage them.",
+  alternates: { canonical: "https://bitsolmarketing.com/cookies" },
+  robots: { index: false, follow: false },
+};
 
 export default function CookiesPage() {
   return (

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import ServicesClient from "./ServicesClient";
 
 export const metadata: Metadata = {
-  title: "AI Marketing Services | SEO, Chatbots, Ads & Automation",
+  title: "Digital Marketing & AI Services",
   description:
-    "Explore BITSOL Marketing's full suite of AI-powered services — SEO, AI chatbot development, Meta ads, social media management, web development, and business automation.",
+    "Explore BITSOL Marketing's services: SEO, AI chatbot development, Meta Ads, social media management, web development and business automation.",
   alternates: { canonical: "https://bitsolmarketing.com/services" },
   openGraph: {
     title: "AI Marketing Services | BITSOL Marketing",

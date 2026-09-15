@@ -8,10 +8,36 @@ import { Button } from "@/components/ui/button";
 import { GlowingCard } from "@/components/ui/glowing-card";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
-import Script from "next/script";
+import type { Metadata } from "next";
+import { JsonLd } from "@/components/JsonLd";
+import { DEFAULT_OG_IMAGE, SITE_URL } from "@/lib/seo";
 import { prisma } from "@/lib/prisma";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "BITSOL Marketing",
+    url: SITE_URL,
+    title: "BITSOL Marketing | Digital Marketing Agency in Pakistan",
+    description:
+      "Grow your business with BITSOL Marketing — result-driven SEO, social media marketing, Google Ads, Meta Ads, web development, and content marketing for brands in Pakistan and globally.",
+    images: [DEFAULT_OG_IMAGE],
+  },
+};
+
+const webPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "@id": `${SITE_URL}/#webpage`,
+  url: SITE_URL,
+  name: "BITSOL Marketing | Digital Marketing Agency in Pakistan",
+  isPartOf: { "@id": `${SITE_URL}/#website` },
+  about: { "@id": `${SITE_URL}/#organization` },
+};
 
 const homepageFAQ = [
   {
@@ -86,7 +112,8 @@ export default async function Home() {
 
   return (
     <div className="relative w-full">
-      <Script id="homepage-faq-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+      <JsonLd data={webPageSchema} />
+      <JsonLd data={faqSchema} />
       <Hero />
       <Partners />
       

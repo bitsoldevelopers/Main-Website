@@ -37,9 +37,9 @@ export const services: Service[] = [
     desc: "Scale your business with intelligent autonomous workflows and custom AI agents.",
     fullDesc:
       "BITSOL Marketing builds custom AI automation systems that eliminate repetitive work and unlock exponential productivity for businesses in Pakistan and globally. Our engineers design LLM-powered agents, predictive analytics pipelines, and end-to-end workflow automation that integrate with your existing tools — from CRMs to ERPs to WhatsApp. Whether you need a customer service bot that handles 500 queries a day, a lead qualification agent, or a data pipeline that predicts churn before it happens, we architect AI solutions that scale with your ambitions. Every system we deploy is trained on your specific business context, tested rigorously, and monitored continuously so it keeps improving over time.",
-    metaTitle: "AI Automation Services Pakistan | Custom AI Agents & Workflow Automation",
+    metaTitle: "AI Automation Services in Pakistan",
     metaDescription:
-      "Custom AI automation for businesses in Pakistan. LLM agents, workflow automation, chatbots, predictive analytics. Save 40+ hours/week. Free consultation with BITSOL Marketing.",
+      "Custom AI automation for businesses in Pakistan: LLM agents, workflow automation, chatbots and predictive analytics. Book a free consultation.",
     icon: Brain,
     iconBg: "#00D9FF1A",
     iconColor: "#00D9FF",
@@ -91,9 +91,9 @@ export const services: Service[] = [
     desc: "Data-driven strategies that dominate search results and social media engagement.",
     fullDesc:
       "BITSOL Marketing delivers full-funnel digital marketing for businesses in Pakistan that want real, measurable growth — not vanity metrics. Our team combines psychological insight with algorithmic precision to build marketing systems that attract the right audience, convert them into buyers, and turn buyers into loyal brand advocates. We manage everything from Meta and Google ad campaigns to social media content, email sequences, and conversion rate optimization. Every rupee of your marketing budget is tracked, attributed, and optimized. Our clients in Karachi, Lahore, and Islamabad consistently see 3–10x returns on their ad spend within the first 60 days of working with us. We don't run campaigns; we build growth engines.",
-    metaTitle: "Digital Marketing Agency Pakistan | Meta Ads, Google Ads & Growth Marketing",
+    metaTitle: "Digital Marketing Services in Pakistan",
     metaDescription:
-      "Pakistan's top digital marketing agency. Meta Ads, Google Ads, social media, CRO, email marketing. 3–10x ROAS for businesses in Karachi, Lahore & Islamabad. Free audit.",
+      "Digital marketing services in Pakistan: Meta Ads, Google Ads, social media, CRO and email marketing for businesses in Karachi, Lahore and Islamabad.",
     icon: Rocket,
     iconBg: "#7C3AED1A",
     iconColor: "#7C3AED",
@@ -145,9 +145,9 @@ export const services: Service[] = [
     desc: "Futuristic, high-performance web applications built with the latest technologies.",
     fullDesc:
       "BITSOL Marketing engineers high-performance websites and web applications for businesses in Pakistan that demand more than a basic WordPress template. We build on Next.js, React, and edge computing infrastructure to deliver sub-second load times, pixel-perfect designs, and conversion-optimised user experiences. Our development team has shipped 150+ projects ranging from e-commerce stores and SaaS platforms to real estate portals and fintech dashboards. Every site we build is SEO-ready from day one — structured data, Core Web Vitals compliance, mobile-first architecture, and server-side rendering baked in. If your website is slow, outdated, or failing to convert visitors into leads, we rebuild it to perform.",
-    metaTitle: "Web Development Company Pakistan | Next.js, React & E-Commerce Development",
+    metaTitle: "Web Development Company in Pakistan",
     metaDescription:
-      "Top web development company in Pakistan. Next.js, React, e-commerce, SaaS. Fast, SEO-ready websites built to convert. Serving Karachi, Lahore & Islamabad. Get a free quote.",
+      "Web development company in Pakistan building fast, SEO-ready Next.js, React, e-commerce and SaaS websites for Karachi, Lahore and Islamabad.",
     icon: Globe,
     iconBg: "#00D9FF1A",
     iconColor: "#00D9FF",
@@ -199,9 +199,9 @@ export const services: Service[] = [
     desc: "Immersive iOS and Android experiences designed for maximum user retention.",
     fullDesc:
       "BITSOL Marketing builds native and cross-platform mobile applications for Pakistani businesses ready to serve customers on their phones. Our mobile team has shipped apps on the Apple App Store and Google Play Store across fintech, healthtech, e-commerce, and on-demand service categories. We use Flutter for cross-platform efficiency and native Swift/Kotlin for performance-critical applications. Every app we build includes biometric authentication, real-time sync, push notification infrastructure, and analytics dashboards so you can track user behaviour and improve retention. From MVP to full-scale launch, we handle UX design, engineering, QA, and App Store submission — you just bring the idea.",
-    metaTitle: "Mobile App Development Pakistan | iOS & Android Apps for Pakistani Businesses",
+    metaTitle: "Mobile App Development in Pakistan",
     metaDescription:
-      "Mobile app development company in Pakistan. Native iOS, Android & Flutter apps. E-commerce, fintech, healthcare, on-demand apps. App Store & Play Store deployment. Get a quote.",
+      "Mobile app development in Pakistan: native iOS, Android and Flutter apps for e-commerce, fintech, healthcare and on-demand businesses. Get a quote.",
     icon: Smartphone,
     iconBg: "#7C3AED1A",
     iconColor: "#7C3AED",
@@ -253,9 +253,9 @@ export const services: Service[] = [
     desc: "Result-driven SEO and Google Business Profile optimization to rank higher and get found locally.",
     fullDesc:
       "BITSOL Marketing delivers comprehensive SEO services that drive sustainable organic growth for businesses in Pakistan and beyond. Our SEO team combines technical excellence, topic cluster content strategy, and authority link building to push your pages to page one of Google. We specialise in local SEO for Karachi, Lahore, and Islamabad businesses — including full Google Business Profile (GBP) optimisation to dominate the Google Map Pack for local searches. From technical audits and on-page optimisation to link building and AI Overview optimisation, we run every element of the SEO process. Our clients consistently see first-page rankings within 60–90 days for local keywords and 3–6 months for competitive national terms.",
-    metaTitle: "SEO Services Pakistan | SEO Agency for Karachi, Lahore & Islamabad",
+    metaTitle: "SEO Services & Local SEO in Pakistan",
     metaDescription:
-      "Top SEO agency in Pakistan. Technical SEO, local SEO, Google Business Profile optimization, content strategy, and link building. Free SEO audit. BITSOL Marketing.",
+      "SEO agency in Pakistan offering technical SEO, local SEO, Google Business Profile optimization, content strategy and link building. Free SEO audit.",
     icon: Search,
     iconBg: "#00D9FF1A",
     iconColor: "#00D9FF",
@@ -307,9 +307,9 @@ export const services: Service[] = [
     desc: "Advanced algorithmic trading systems for PSX, PMEX, and Crypto markets.",
     fullDesc:
       "BITSOL Marketing engineers institutional-grade algorithmic trading technology for investors and trading firms operating on the Pakistan Stock Exchange (PSX), PMEX, and global crypto markets. Our trading systems combine low-latency execution architecture with machine learning models that identify alpha-generating opportunities in real time. We build custom trading bots, backtesting frameworks, portfolio risk management dashboards, and market-making algorithms tailored to your strategy. Whether you are a proprietary trading desk, an asset manager, or an individual investor ready to automate your edge, our team brings the same engineering rigour used by global quantitative hedge funds — packaged for the Pakistani market.",
-    metaTitle: "Algorithmic Trading Software Pakistan | PSX, PMEX & Crypto Trading Bots",
+    metaTitle: "Algorithmic Trading Software in Pakistan",
     metaDescription:
-      "Custom algorithmic trading software for PSX, PMEX, and crypto markets in Pakistan. Trading bots, backtesting, risk management AI. Institutional-grade. Free consultation.",
+      "Custom algorithmic trading software for PSX, PMEX and crypto markets: trading bots, backtesting and AI risk management. Free consultation.",
     icon: TrendingUp,
     iconBg: "#7C3AED1A",
     iconColor: "#7C3AED",
@@ -361,9 +361,9 @@ export const services: Service[] = [
     desc: "Strategic content that attracts, engages, and converts your ideal audience at every stage.",
     fullDesc:
       "BITSOL Marketing builds content marketing systems for businesses in Pakistan that generate qualified leads and establish authority — not just blog posts that nobody reads. Our content team creates SEO-optimised articles, case studies, email sequences, video scripts, social media content, and lead magnets that move prospects through your sales funnel. Every piece of content we produce is mapped to a specific keyword, a specific buyer persona, and a specific stage of the customer journey. We measure content performance by organic traffic, leads generated, and revenue attributed — not page views. Whether you need a 12-month editorial calendar, a weekly blog service, or a complete inbound marketing system, we build content that compounds in value over time.",
-    metaTitle: "Content Marketing Agency Pakistan | Blog, SEO Content & Lead Generation",
+    metaTitle: "Content Marketing Agency in Pakistan",
     metaDescription:
-      "Strategic content marketing for businesses in Pakistan. SEO blog content, email sequences, social media copy, and lead magnets that generate qualified leads. BITSOL Marketing.",
+      "Content marketing for businesses in Pakistan: SEO blog content, email sequences, social media copy and lead magnets that generate qualified leads.",
     icon: PenTool,
     iconBg: "#00D9FF1A",
     iconColor: "#00D9FF",
@@ -415,9 +415,9 @@ export const services: Service[] = [
     desc: "Strategic brand identity that builds recognition, trust, and premium positioning.",
     fullDesc:
       "BITSOL Marketing builds brand identities for Pakistani businesses that want to look as professional as international agencies — and charge accordingly. Our branding team covers everything from brand strategy and naming to logo design, visual identity systems, brand guidelines, and brand voice frameworks. We don't just design logos; we build the complete system that ensures your brand is consistent and recognisable across your website, social media, packaging, signage, and sales materials. Whether you're launching a new brand, rebranding an existing business, or building a sub-brand for a new product, we deliver brand assets that command trust and justify premium pricing. Our clients consistently report that professional branding directly impacts their ability to close deals with larger clients and charge higher fees.",
-    metaTitle: "Branding Agency Pakistan | Logo Design, Brand Identity & Visual Design",
+    metaTitle: "Branding & Logo Design Agency in Pakistan",
     metaDescription:
-      "Professional branding agency in Pakistan. Logo design, brand identity, visual systems, and brand guidelines for businesses in Karachi, Lahore, and Islamabad. BITSOL Marketing.",
+      "Branding agency in Pakistan for logo design, brand identity, visual systems and brand guidelines. Serving Karachi, Lahore and Islamabad.",
     icon: Palette,
     iconBg: "#7C3AED1A",
     iconColor: "#7C3AED",

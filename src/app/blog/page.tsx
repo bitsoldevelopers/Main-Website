@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 import Image from "next/image";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 export const revalidate = 60;
 
@@ -29,7 +30,10 @@ export async function generateMetadata({
   const suffix = page > 1 ? ` — Page ${page}` : "";
 
   return {
-    title: `Blog | AI Marketing Insights & SEO Strategies${suffix}`,
+    title:
+      page > 1
+        ? `Blog — Page ${page} | Marketing & AI Insights`
+        : "Blog | Digital Marketing & AI Insights",
     description:
       "Expert insights on AI digital marketing, SEO strategies, automation, and business growth from the BITSOL MARKETING team.",
     // Self-referencing canonical per page so paginated results are not
@@ -40,6 +44,7 @@ export async function generateMetadata({
       description:
         "Expert insights on AI digital marketing, SEO, automation and business growth.",
       url,
+      images: [DEFAULT_OG_IMAGE],
     },
   };
 }

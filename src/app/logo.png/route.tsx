@@ -1,6 +1,9 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
+// This URL is the logo in the Organization schema. It used the edge runtime,
+// which returned 503 on the Hostinger Node server. Render it once at build
+// time on the default Node runtime and serve it as a static file instead.
+export const dynamic = "force-static";
 
 export async function GET() {
   return new ImageResponse(

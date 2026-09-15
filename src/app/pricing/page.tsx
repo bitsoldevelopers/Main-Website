@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import PricingClient from "./PricingClient";
-import Script from "next/script";
+import { JsonLd } from "@/components/JsonLd";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Pricing | AI Marketing & Automation Packages",
+  title: "Digital Marketing Packages & Pricing",
   description:
-    "Transparent pricing for BITSOL Marketing's AI automation, SEO, digital marketing, and web development services. Starter, Growth, and Enterprise packages for every budget.",
+    "Transparent pricing for AI automation, SEO, digital marketing and web development. Starter, Growth and Enterprise packages for every budget.",
   alternates: { canonical: "https://bitsolmarketing.com/pricing" },
   openGraph: {
     title: "Pricing | BITSOL Marketing Packages",
     description:
       "Flexible AI marketing packages — SEO, automation, ads, and web development for businesses in Pakistan and globally.",
     url: "https://bitsolmarketing.com/pricing",
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 
@@ -66,11 +68,7 @@ const offerSchema = {
 export default function PricingPage() {
   return (
     <>
-      <Script
-        id="pricing-schema"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(offerSchema) }}
-      />
+      <JsonLd data={offerSchema} />
       <PricingClient />
     </>
   );

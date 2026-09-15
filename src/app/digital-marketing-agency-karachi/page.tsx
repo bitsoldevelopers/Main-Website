@@ -4,18 +4,20 @@ import { GlowingCard } from "@/components/ui/glowing-card";
 import { ContactForm } from "@/components/ContactForm";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, ArrowRight } from "lucide-react";
-import Script from "next/script";
+import { JsonLd } from "@/components/JsonLd";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Digital Marketing Agency Karachi | AI SEO, Meta Ads & Growth Marketing",
+  title: "Digital Marketing Agency in Karachi",
   description:
-    "Top digital marketing agency in Karachi. AI-powered SEO, Meta Ads, Google Ads, social media management, and web development for Karachi businesses. Free audit. BITSOL Marketing.",
+    "Digital marketing agency in Karachi offering SEO, Meta Ads, Google Ads, social media management and web development for Karachi businesses. Free audit.",
   alternates: { canonical: "https://bitsolmarketing.com/digital-marketing-agency-karachi" },
   openGraph: {
     title: "Digital Marketing Agency Karachi | BITSOL Marketing",
     description:
       "Karachi's leading AI digital marketing agency. SEO, Meta Ads, Google Ads, automation, web development. Trusted by 150+ businesses. Free strategy call.",
     url: "https://bitsolmarketing.com/digital-marketing-agency-karachi",
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 
@@ -114,9 +116,9 @@ const services = [
 export default function KarachiPage() {
   return (
     <>
-      <Script id="karachi-faq-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-      <Script id="karachi-local-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }} />
-      <Script id="karachi-breadcrumb-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <JsonLd data={faqSchema} />
+      <JsonLd data={localBusinessSchema} />
+      <JsonLd data={breadcrumbSchema} />
 
       <div className="pt-32 pb-24">
         <div className="container mx-auto px-6">

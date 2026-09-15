@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
-  title: "Refund Policy | BITSOL Marketing",
+  title: "Refund Policy",
   description:
     "BITSOL Marketing's Refund Policy — eligibility and terms for digital marketing, web development, and AI solutions.",
   alternates: { canonical: "https://bitsolmarketing.com/refund" },

@@ -5,7 +5,7 @@ import { ContactForm } from "@/components/ContactForm";
 import Link from "next/link";
 import { CheckCircle2, ChevronDown } from "lucide-react";
 import type { Metadata } from "next";
-import Script from "next/script";
+import { JsonLd } from "@/components/JsonLd";
 
 export async function generateStaticParams() {
   return services.map((service) => ({
@@ -102,9 +102,9 @@ export default async function ServiceDetailPage({
 
   return (
     <>
-      <Script id="faq-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-      <Script id="service-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }} />
-      <Script id="breadcrumb-schema" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <JsonLd data={faqSchema} />
+      <JsonLd data={serviceSchema} />
+      <JsonLd data={breadcrumbSchema} />
 
       <div className="pt-32 pb-24">
         <div className="container mx-auto px-6">

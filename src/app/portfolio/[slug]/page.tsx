@@ -29,7 +29,8 @@ export async function generateMetadata({
       title: project.title,
       description: project.desc,
       url: `https://bitsolmarketing.com/portfolio/${slug}`,
-      images: project.image.startsWith("http") ? [{ url: project.image }] : [],
+      // Relative paths (e.g. /alphatrade-pro.png) resolve against metadataBase.
+      images: [{ url: project.image }],
     },
   };
 }

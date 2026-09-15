@@ -4,7 +4,7 @@ import AboutClient from "./AboutClient";
 export const metadata: Metadata = {
   title: "About Us | AI Marketing Agency Team",
   description:
-    "Meet the BITSOL Marketing team — AI engineers, SEO strategists, and growth marketers building intelligent digital systems for businesses in Pakistan and globally.",
+    "Meet the BITSOL Marketing team: AI engineers, SEO strategists and growth marketers building digital systems for businesses in Pakistan and worldwide.",
   alternates: { canonical: "https://bitsolmarketing.com/about" },
   openGraph: {
     title: "About BITSOL Marketing | AI-Powered Growth Agency",

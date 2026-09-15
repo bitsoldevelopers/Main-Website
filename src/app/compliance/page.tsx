@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
+
+export const metadata: Metadata = {
+  title: "Compliance",
+  description:
+    "BITSOL Marketing's approach to regulatory standards, fintech and trading compliance, AI ethics, data sovereignty and audits.",
+  alternates: { canonical: "https://bitsolmarketing.com/compliance" },
+  robots: { index: false, follow: false },
+};
 
 export default function CompliancePage() {
   return (
