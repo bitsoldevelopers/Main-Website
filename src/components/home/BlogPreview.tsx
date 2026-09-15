@@ -18,10 +18,14 @@ type Post = {
 };
 
 function formatDate(date: Date | string): string {
+  // Pinned to one time zone: without it the server (UTC) and the visitor's
+  // browser rendered different dates for evening posts, which React reported
+  // as a hydration mismatch and then re-rendered the whole tree.
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "Asia/Karachi",
   }).format(new Date(date));
 }
 
