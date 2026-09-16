@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CheckCircle2, ChevronDown } from "lucide-react";
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 export async function generateStaticParams() {
   return services.map((service) => ({
@@ -32,14 +33,7 @@ export async function generateMetadata({
       title: service.metaTitle,
       description: service.metaDescription,
       url: `https://bitsolmarketing.com/services/${slug}`,
-      images: [
-        {
-          url: "https://bitsolmarketing.com/opengraph-image",
-          width: 1200,
-          height: 630,
-          alt: "BITSOL Marketing — AI Digital Marketing Agency",
-        },
-      ],
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image",

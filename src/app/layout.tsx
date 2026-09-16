@@ -103,7 +103,7 @@ const siteSchema = {
         "height": 200,
         "caption": "BITSOL Marketing"
       },
-      "image": "https://bitsolmarketing.com/opengraph-image",
+      "image": DEFAULT_OG_IMAGE.url,
       "description": "BITSOL Marketing is a results-driven digital marketing agency in Pakistan. We offer SEO, social media marketing, Meta Ads, Google Ads, web development, content marketing, and Google Business Profile optimization.",
       "foundingDate": "2020",
       "priceRange": "$",

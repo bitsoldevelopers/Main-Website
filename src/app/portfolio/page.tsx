@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PortfolioClient from "./PortfolioClient";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Portfolio | AI & Web Development Projects",
@@ -11,14 +12,7 @@ export const metadata: Metadata = {
     description:
       "AI systems, web platforms, trading tech, and digital marketing campaigns. See what BITSOL Marketing builds for ambitious businesses.",
     url: "https://bitsolmarketing.com/portfolio",
-    images: [
-      {
-        url: "https://bitsolmarketing.com/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "BITSOL Marketing — AI Digital Marketing Agency",
-      },
-    ],
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 

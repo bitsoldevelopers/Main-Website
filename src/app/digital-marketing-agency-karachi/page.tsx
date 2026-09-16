@@ -69,7 +69,7 @@ const localBusinessSchema = {
   url: "https://bitsolmarketing.com/digital-marketing-agency-karachi",
   telephone: "+923103175175",
   priceRange: "$$",
-  image: "https://bitsolmarketing.com/opengraph-image",
+  image: DEFAULT_OG_IMAGE.url,
   areaServed: [
     { "@type": "City", "name": "Karachi" },
     { "@type": "State", "name": "Sindh" },

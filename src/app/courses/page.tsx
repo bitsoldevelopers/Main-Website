@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import CoursesClient from "./CoursesClient";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Digital Marketing & AI Courses Online",
@@ -11,14 +12,7 @@ export const metadata: Metadata = {
     description:
       "Master digital marketing, AI automation, and trading with BITSOL Academy's expert-led online courses.",
     url: "https://bitsolmarketing.com/courses",
-    images: [
-      {
-        url: "https://bitsolmarketing.com/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "BITSOL Marketing — AI Digital Marketing Agency",
-      },
-    ],
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 
