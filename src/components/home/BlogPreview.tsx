@@ -12,7 +12,8 @@ type Post = {
   title: string;
   slug: string;
   excerpt: string | null;
-  content: string;
+  /** Only present on posts from the client-side /api/blog fallback. */
+  content?: string;
   tags: string[];
   createdAt: Date;
 };
@@ -90,7 +91,7 @@ export default function BlogPreview({ posts: initialPosts }: { posts: Post[] }) 
             const firstTag = post.tags?.[0] ?? "AI Marketing";
             const excerpt =
               post.excerpt ||
-              stripHtml(post.content).slice(0, 140) + "…";
+              (post.content ? stripHtml(post.content).slice(0, 140) + "…" : "");
 
             return (
               <motion.div

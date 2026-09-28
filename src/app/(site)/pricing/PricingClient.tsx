@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, HelpCircle, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlowingCard } from "@/components/ui/glowing-card";
-import { DIcons } from "dicons";
+import { DIcons } from "@/components/ui/dicons";
 import PricingCards from "@/components/PricingCards";
 
 const addOns = [

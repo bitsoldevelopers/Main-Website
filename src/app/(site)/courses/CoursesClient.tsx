@@ -14,7 +14,7 @@ const courses = [
     duration: "12 Weeks",
     students: "1.2k+",
     rating: "4.9",
-    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=75&w=1200",
     tags: ["Marketing", "AI", "SEO"],
   },
   {
@@ -24,7 +24,7 @@ const courses = [
     duration: "16 Weeks",
     students: "850+",
     rating: "5.0",
-    image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=75&w=1200",
     tags: ["Artificial Intelligence", "Python", "Automation"],
   },
   {
@@ -34,7 +34,7 @@ const courses = [
     duration: "10 Weeks",
     students: "2.1k+",
     rating: "4.8",
-    image: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=75&w=1200",
     tags: ["Trading", "Finance", "PSX"],
   },
 ];
@@ -75,6 +75,7 @@ export default function CoursesClient() {
                 src={course.image}
                 alt={course.title}
                 fill
+                sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-110"
               />
               <div className="absolute top-4 left-4 flex gap-2">

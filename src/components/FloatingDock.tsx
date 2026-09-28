@@ -13,7 +13,7 @@ import {
   X,
   LayoutGrid
 } from "lucide-react";
-import { DIcons } from "dicons";
+import { DIcons } from "@/components/ui/dicons";
 import SearchComponent from "@/components/ui/animated-glowing-search-bar";
 import { useRouter } from "next/navigation";
 

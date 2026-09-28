@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DIcons } from "dicons";
+import { DIcons } from "@/components/ui/dicons";
 import FooterThemeToggle from "@/components/ui/footer-theme-toggle";
 import { Logo } from "@/components/ui/Logo";
 

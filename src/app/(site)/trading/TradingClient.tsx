@@ -76,7 +76,6 @@ export default function TradingClient() {
             animate={{ opacity: 1, scale: 1 }}
             className="relative h-[400px] md:h-[600px] rounded-2xl border border-slate-200 dark:border-brand-cyan/20 bg-slate-50 dark:bg-slate-900/60 dark:backdrop-blur-xl flex items-center justify-center overflow-hidden shadow-lg dark:shadow-none"
           >
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1611974717482-98aa01374246?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-10 dark:opacity-20" />
             <div className="relative z-10 w-full h-full p-8 flex flex-col justify-end">
               <div className="h-64 flex items-end gap-2">
                 {[40, 70, 45, 90, 65, 80, 100, 75, 85, 60].map((h, i) => (

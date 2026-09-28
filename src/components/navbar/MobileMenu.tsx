@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Phone, Mail, ArrowRight, X } from "lucide-react";
-import { DIcons } from "dicons";
+import { DIcons } from "@/components/ui/dicons";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/Logo";
 import { primaryNav, contactInfo } from "@/lib/navigation";

@@ -46,20 +46,20 @@ export function Entropy({ className = "" }: EntropyProps) {
     class Particle {
       x: number
       y: number
-      size: number
       order: boolean
       velocity: { x: number; y: number }
       originalX: number
       originalY: number
       influence: number
       neighbors: Particle[]
+      /** Position in `particles`, used to draw each link from one end only. */
+      id: number
 
-      constructor(x: number, y: number, order: boolean) {
+      constructor(x: number, y: number, order: boolean, id: number) {
         this.x = x
         this.y = y
         this.originalX = x
         this.originalY = y
-        this.size = 1.5
         this.order = order
         this.velocity = {
           x: (Math.random() - 0.5) * 1.5,
@@ -67,6 +67,7 @@ export function Entropy({ className = "" }: EntropyProps) {
         }
         this.influence = 0
         this.neighbors = []
+        this.id = id
       }
 
       update() {
@@ -77,7 +78,9 @@ export function Entropy({ className = "" }: EntropyProps) {
           const chaosInfluence = { x: 0, y: 0 }
           this.neighbors.forEach(neighbor => {
             if (!neighbor.order) {
-              const distance = Math.hypot(this.x - neighbor.x, this.y - neighbor.y)
+              const ndx = this.x - neighbor.x
+              const ndy = this.y - neighbor.y
+              const distance = Math.sqrt(ndx * ndx + ndy * ndy)
               const strength = Math.max(0, 1 - distance / 150)
               chaosInfluence.x += (neighbor.velocity.x * strength)
               chaosInfluence.y += (neighbor.velocity.y * strength)
@@ -103,13 +106,6 @@ export function Entropy({ className = "" }: EntropyProps) {
         }
       }
 
-      draw(ctx: CanvasRenderingContext2D) {
-        const alpha = this.order ? 0.4 - this.influence * 0.2 : 0.4
-        ctx.fillStyle = `${particleColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`
-        ctx.beginPath()
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
-        ctx.fill()
-      }
     }
 
     const particles: Particle[] = []
@@ -123,51 +119,117 @@ export function Entropy({ className = "" }: EntropyProps) {
         const x = i * spacing + spacing / 2
         const y = j * spacing + spacing / 2
         const order = x < width / 2
-        particles.push(new Particle(x, y, order))
+        particles.push(new Particle(x, y, order, particles.length))
       }
     }
 
+    // Comparing every particle with every other one was 1.7M distance checks
+    // at 1920×1080, done in a single frame once a second. Bucketing positions
+    // into 120px cells means each particle only checks the 3×3 cells around it.
+    const NEIGHBOR_RADIUS = 120
     function updateNeighbors() {
-      particles.forEach(particle => {
-        particle.neighbors = particles.filter(other => {
-          if (other === particle) return false
-          const distance = Math.hypot(particle.x - other.x, particle.y - other.y)
-          return distance < 120
-        })
-      })
+      const grid = new Map<string, Particle[]>()
+      for (const p of particles) {
+        const key = `${Math.floor(p.x / NEIGHBOR_RADIUS)},${Math.floor(p.y / NEIGHBOR_RADIUS)}`
+        const cell = grid.get(key)
+        if (cell) cell.push(p)
+        else grid.set(key, [p])
+      }
+      for (const p of particles) {
+        const cx = Math.floor(p.x / NEIGHBOR_RADIUS)
+        const cy = Math.floor(p.y / NEIGHBOR_RADIUS)
+        const neighbors: Particle[] = []
+        for (let gx = cx - 1; gx <= cx + 1; gx++) {
+          for (let gy = cy - 1; gy <= cy + 1; gy++) {
+            for (const other of grid.get(`${gx},${gy}`) ?? []) {
+              if (other === p) continue
+              const dx = p.x - other.x
+              const dy = p.y - other.y
+              if (dx * dx + dy * dy < NEIGHBOR_RADIUS * NEIGHBOR_RADIUS) neighbors.push(other)
+            }
+          }
+        }
+        p.neighbors = neighbors
+      }
     }
+
+    // Dots and links used to be drawn one canvas call each — about 10,000
+    // fill/stroke calls a frame at 1920×1080. They are now grouped by their
+    // 8-bit alpha (the same rounding the colour string always used) and each
+    // group is drawn as one path, so a frame is a few dozen calls.
+    const colors = Array.from({ length: 256 }, (_, a) => `${particleColor}${a.toString(16).padStart(2, '0')}`)
+    const alphaByte = (alpha: number) => Math.min(255, Math.max(0, Math.round(alpha * 255)))
+    const dotBuckets: number[][] = Array.from({ length: 256 }, () => [])
+    const lineBuckets: number[][] = Array.from({ length: 256 }, () => [])
+    const TAU = Math.PI * 2
+    const DOT_RADIUS = 1.5
 
     let time = 0
     let animationId: number | null = null
     let paused = document.hidden
+    let lastFrame = 0
 
-    function animate() {
+    function animate(now: number) {
       if (paused || !ctx || !canvas) {
         animationId = null
         return
       }
+      animationId = requestAnimationFrame(animate)
+      // Motion is a fixed step per frame, so on 120/144Hz screens the field
+      // ran twice as fast and cost twice the CPU. Hold it to ~60fps.
+      if (now - lastFrame < 15) return
+      lastFrame = now
+
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       if (time % 60 === 0) updateNeighbors()
 
-      particles.forEach(particle => {
-        particle.update()
-        particle.draw(ctx)
+      for (const p of particles) p.update()
 
-        particle.neighbors.forEach(neighbor => {
-          const distance = Math.hypot(particle.x - neighbor.x, particle.y - neighbor.y)
-          if (distance < 60) {
-            const alpha = 0.1 * (1 - distance / 60)
-            ctx.strokeStyle = `${particleColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`
-            ctx.beginPath()
-            ctx.moveTo(particle.x, particle.y)
-            ctx.lineTo(neighbor.x, neighbor.y)
-            ctx.stroke()
-          }
-        })
-      })
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i]
+        dotBuckets[alphaByte(p.order ? 0.4 - p.influence * 0.2 : 0.4)].push(p.x, p.y)
+
+        for (const n of p.neighbors) {
+          // Neighbour lists are symmetric; draw each link from one end only.
+          if (n.id < i) continue
+          const dx = p.x - n.x
+          const dy = p.y - n.y
+          const d2 = dx * dx + dy * dy
+          if (d2 >= 3600) continue
+          const alpha = 0.1 * (1 - Math.sqrt(d2) / 60)
+          // Each link used to be stroked twice, once from each end, which
+          // compounds the alpha. Drawn once, it needs that combined alpha.
+          lineBuckets[alphaByte(1 - (1 - alpha) * (1 - alpha))].push(p.x, p.y, n.x, n.y)
+        }
+      }
+
+      for (let a = 0; a < 256; a++) {
+        const lines = lineBuckets[a]
+        if (lines.length === 0) continue
+        ctx.strokeStyle = colors[a]
+        ctx.beginPath()
+        for (let k = 0; k < lines.length; k += 4) {
+          ctx.moveTo(lines[k], lines[k + 1])
+          ctx.lineTo(lines[k + 2], lines[k + 3])
+        }
+        ctx.stroke()
+        lines.length = 0
+      }
+
+      for (let a = 0; a < 256; a++) {
+        const dots = dotBuckets[a]
+        if (dots.length === 0) continue
+        ctx.fillStyle = colors[a]
+        ctx.beginPath()
+        for (let k = 0; k < dots.length; k += 2) {
+          ctx.moveTo(dots[k] + DOT_RADIUS, dots[k + 1])
+          ctx.arc(dots[k], dots[k + 1], DOT_RADIUS, 0, TAU)
+        }
+        ctx.fill()
+        dots.length = 0
+      }
 
       time++
-      animationId = requestAnimationFrame(animate)
     }
 
     const handleVisibilityChange = () => {

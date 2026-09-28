@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { GlowingCard } from "@/components/ui/glowing-card";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { DIcons } from "dicons";
+import { DIcons } from "@/components/ui/dicons";
 import PricingCards from "@/components/PricingCards";
 
 export default function ServicesPage() {

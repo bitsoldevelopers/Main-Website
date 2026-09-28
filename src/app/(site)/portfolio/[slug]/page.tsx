@@ -73,6 +73,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 src={project.image}
                 alt={project.title}
                 fill
+                sizes="(min-width: 1024px) 66vw, 100vw"
+                preload
                 className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/40 to-transparent" />

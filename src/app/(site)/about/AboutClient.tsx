@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Brain, Rocket, Shield, Target, Users, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline";
@@ -60,9 +61,13 @@ export default function AboutPage() {
             viewport={{ once: true }}
             className="glass-card p-2 relative aspect-square"
           >
-             <img 
-               src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80" 
-               alt="Technology" 
+             {/* Without w/h Unsplash sends the full-resolution original:
+                 6MB for a square that renders at most ~600px wide. */}
+             <img
+               src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=75&w=900&h=900"
+               alt="Technology"
+               loading="lazy"
+               decoding="async"
                className="w-full h-full object-cover rounded-xl opacity-80"
              />
              <div className="absolute inset-0 bg-gradient-to-tr from-brand-cyan/20 to-transparent rounded-xl" />
@@ -85,10 +90,12 @@ export default function AboutPage() {
               <div className="relative group">
                 <div className="absolute -inset-4 bg-gradient-to-r from-brand-cyan to-brand-purple rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                 <div className="relative w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden border-4 border-white/10 shadow-2xl">
-                  <img 
-                    src="/adnan-bashir.png" 
-                    alt="Muhammad Adnan Bashir" 
-                    className="w-full h-full object-cover scale-110 translate-y-4"
+                  <Image
+                    src="/adnan-bashir.png"
+                    alt="Muhammad Adnan Bashir"
+                    fill
+                    sizes="(min-width: 768px) 320px, 256px"
+                    className="object-cover scale-110 translate-y-4"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/40 to-transparent" />
                 </div>

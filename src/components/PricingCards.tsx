@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlowingCard } from "@/components/ui/glowing-card";
-import { DIcons } from "dicons";
+import { DIcons } from "@/components/ui/dicons";
 import { plans } from "@/lib/pricing";
 
 export default function PricingCards() {

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { projects } from "@/lib/portfolio";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function PortfolioPreview() {
   const previewProjects = projects.slice(0, 6);
@@ -48,12 +49,16 @@ export default function PortfolioPreview() {
               transition={{ delay: i * 0.1 }}
               className="group relative h-[450px] rounded-3xl overflow-hidden border border-white/10"
             >
-              <img
+              <Image
                 src={project.image}
                 alt={project.title}
-                loading={i === 0 ? "eager" : "lazy"}
-                decoding="async"
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                fill
+                sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                // Unsplash URLs already ask its CDN for a sized, compressed
+                // image. The local screenshots are 1024px PNGs of up to 1.2MB,
+                // so those go through the optimizer.
+                unoptimized={project.image.startsWith("http")}
+                className="object-cover transition-transform duration-700 group-hover:scale-110"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
               

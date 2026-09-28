@@ -66,13 +66,16 @@ const homepageFAQ = [
   },
 ];
 
+function excerptFrom(html: string): string {
+  return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().slice(0, 140) + "…";
+}
+
 export default async function Home() {
   let blogPosts: {
     id: string;
     title: string;
     slug: string;
-    excerpt: string | null;
-    content: string;
+    excerpt: string;
     tags: string[];
     createdAt: Date;
   }[] = [];
@@ -92,8 +95,12 @@ export default async function Home() {
         createdAt: true,
       },
     });
-    blogPosts = raw.map((p) => ({
+    // BlogPreview is a client component, so everything passed to it is
+    // serialized into the page. Sending the full article HTML added ~60KB to
+    // the homepage for an excerpt the server can cut here.
+    blogPosts = raw.map(({ content, ...p }) => ({
       ...p,
+      excerpt: p.excerpt || excerptFrom(content),
       tags: Array.isArray(p.tags) ? (p.tags as string[]) : [],
     }));
   } catch {

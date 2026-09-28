@@ -1,6 +1,6 @@
 "use client";
 
-import { DIcons } from "dicons";
+import { DIcons } from "@/components/ui/dicons";
 import { useTheme } from "next-themes";
 
 function handleScrollTop() {
