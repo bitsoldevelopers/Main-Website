@@ -21,7 +21,7 @@ async function prepareHostingerDeploy() {
   // Check if standalone build exists
   if (!fs.existsSync(standaloneDir)) {
     console.error('❌ Error: .next/standalone directory not found.');
-    console.log('💡 Please run "npm run build" first with output: "standalone" in next.config.ts.');
+    console.log('💡 Please run "npm run build" first with output: "standalone" in next.config.mjs.');
     process.exit(1);
   }
 
