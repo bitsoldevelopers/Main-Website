@@ -6,10 +6,11 @@
 **Meta Description:** How to structure AI customer support across tiers — what each level handles, how to keep quality visible, and why the metric most teams report hides the failures that matter.
 **URL Slug:** ai-powered-customer-support
 **Primary Keyword:** AI-powered customer support
-**Secondary Keywords:** AI customer service, support automation tiers, customer support AI Pakistan, support quality assurance, escalation design
+**Secondary Keywords:** AI customer service, support automation tiers, customer support AI Pakistan, support quality assurance, escalation design, AI customer service agents, autonomous support agents
 **Search Intent:** Informational with commercial follow-through
 **Target Audience:** Support managers and operations leads at Pakistani businesses
 **Suggested Schema:** Article, FAQPage, BreadcrumbList
+**Merged Plan Entries:** C22 (AI customer service agents)
 
 ---
 
@@ -161,6 +162,25 @@ We start with Tier 0, because preventing a contact is cheaper than handling one,
 Escalation is designed and tested adversarially before launch, including frustration detection in Roman Urdu. Factual answers are retrieved rather than generated.
 
 We set up conversation sampling as part of the engagement rather than leaving it to chance, because resolution rate alone will not tell you when the system starts quietly failing.
+
+---
+
+## From Chatbots to Customer Service Agents
+
+A support chatbot answers questions. A customer service agent completes tasks — and that distinction is where most of the operational value now sits.
+
+**What an agent can do that a chatbot cannot:**
+
+- **Look up real data.** Order status from the store, appointment times from the booking system, account balance from the billing system — rather than generic answers.
+- **Take action.** Reschedule an appointment, cancel an order, update a delivery address, issue a tracking link, raise a ticket.
+- **Follow multi-step processes.** Collect details, verify identity where required, perform the action, confirm the outcome.
+- **Decide when to stop.** Escalate on sentiment, repeated failure, refund requests or anything outside its permitted actions.
+
+**What this requires:** system integrations, clearly defined permissions for what the agent may change, an audit trail of every action taken, and strict limits on sensitive operations.
+
+**Where to draw the line.** Agents should not approve refunds, override policy, make goodwill decisions or handle complaints about serious service failures. Those need human judgement and accountability.
+
+**A sensible progression:** start with answering from an approved knowledge base, add read-only data lookups, then permit low-risk actions such as appointment changes, and only then consider anything affecting money or contracts — with human approval steps in place.
 
 ---
 
