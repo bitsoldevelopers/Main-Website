@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { GlowingCard } from "@/components/ui/glowing-card";
 import { ArrowRight, Calendar, User, Tag } from "lucide-react";
@@ -34,8 +35,11 @@ export async function generateMetadata({
       page > 1
         ? `Blog — Page ${page} | Marketing & AI Insights`
         : "Blog | Digital Marketing & AI Insights",
+    // Paginated pages each had page 1's description word for word.
     description:
-      "Expert insights on AI digital marketing, SEO strategies, automation, and business growth from the BITSOL MARKETING team.",
+      page > 1
+        ? `Page ${page} of the BITSOL Marketing blog: guides on AI marketing, SEO, automation and business growth in Pakistan.`
+        : "Expert insights on AI digital marketing, SEO strategies, automation, and business growth from the BITSOL MARKETING team.",
     // Self-referencing canonical per page so paginated results are not
     // collapsed onto page 1.
     alternates: { canonical: url },
@@ -89,6 +93,7 @@ export default async function BlogPage({
 
   let posts: any[] = [];
   let totalPosts = 0;
+  let loaded = false;
 
   try {
     // Paginated. Previously this fetched every published post including its
@@ -114,11 +119,17 @@ export default async function BlogPage({
       }),
       prisma.blog.count({ where: { published: true } }),
     ]);
+    loaded = true;
   } catch (err) {
     console.error("[Blog] Database query failed:", err);
   }
 
   const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
+
+  // /blog?page=999 rendered an empty "coming soon" page with a 200 and its
+  // own canonical — an indexable soft 404 for every number past the end.
+  // Only when the query succeeded: a database blip is not a missing page.
+  if (loaded && page > totalPages) notFound();
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
   const pageHref = (n: number) => (n <= 1 ? "/blog" : `/blog?page=${n}`);

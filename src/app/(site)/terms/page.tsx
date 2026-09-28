@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Read BITSOL Marketing's Terms of Service governing use of our digital marketing, AI automation, and web development services.",
   alternates: { canonical: "https://bitsolmarketing.com/terms" },
-  robots: { index: false, follow: false },
+  robots: { index: false, follow: true },
 };
 
 export default function TermsPage() {

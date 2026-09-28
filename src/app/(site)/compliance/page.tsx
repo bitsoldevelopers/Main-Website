@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "BITSOL Marketing's approach to regulatory standards, fintech and trading compliance, AI ethics, data sovereignty and audits.",
   alternates: { canonical: "https://bitsolmarketing.com/compliance" },
-  robots: { index: false, follow: false },
+  robots: { index: false, follow: true },
 };
 
 export default function CompliancePage() {

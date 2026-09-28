@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "BITSOL Marketing's Refund Policy — eligibility and terms for digital marketing, web development, and AI solutions.",
   alternates: { canonical: "https://bitsolmarketing.com/refund" },
-  robots: { index: false, follow: false },
+  robots: { index: false, follow: true },
 };
 
 export default function RefundPage() {

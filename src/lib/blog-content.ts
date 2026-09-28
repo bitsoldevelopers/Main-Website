@@ -2,13 +2,23 @@
  * Cleans stored article HTML before it is rendered.
  *
  * Posts are written by several generators and pasted in over time, so the
- * stored HTML carries three problems the page template can't fix on its own:
- * a repeated <h1>, images from the shut-down source.unsplash.com service, and
- * calls to action that all link to the homepage.
+ * stored HTML carries problems the page template can't fix on its own: a
+ * repeated <h1>, images from the shut-down source.unsplash.com service,
+ * calls to action that all link to the homepage, and links to the offline
+ * ConversiQ subdomain.
  */
 
 const SITE_URL = "https://bitsolmarketing.com";
 const HOMEPAGE = /^https?:\/\/(?:www\.)?bitsolmarketing\.com\/?$/i;
+
+/**
+ * conversiq.bitsolmarketing.com, the ConversiQ WhatsApp chatbot site, stopped
+ * resolving (NXDOMAIN, Sept 2026) and 62 articles link to it. Until it is back,
+ * send those links to the service page that sells the same thing. Delete this
+ * rule once the subdomain resolves again.
+ */
+const CONVERSIQ = /^https?:\/\/conversiq\.bitsolmarketing\.com(?:\/[^"]*)?$/i;
+const CONVERSIQ_FALLBACK = `${SITE_URL}/services/ai-automation`;
 
 /** Anchor text that means "get in touch" rather than "the BITSOL website". */
 const CTA_TEXT = /contact|get in touch|talk to|let'?s talk|book |consultation|strategy (call|session)|free audit/i;
@@ -46,6 +56,9 @@ export function cleanArticleHtml(html: string, title: string): string {
       .replace(
         /<a\b([^>]*?)href="([^"]*)"([^>]*)>([\s\S]*?)<\/a>/gi,
         (match, before: string, href: string, after: string, inner: string) => {
+          if (CONVERSIQ.test(href)) {
+            return `<a${before}href="${CONVERSIQ_FALLBACK}"${after}>${inner}</a>`;
+          }
           if (!HOMEPAGE.test(href)) return match;
           const text = plainText(inner);
           const target = CTA_TEXT.test(text)

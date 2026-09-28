@@ -145,18 +145,25 @@ export default function Navbar() {
           >
             {primaryNav.map((item) =>
               item.columns ? (
+                // The label is a real link to the hub page and the chevron
+                // opens the menu. When the whole item was a button, the
+                // header linked to /services, /ai-solutions and /courses only
+                // from inside the mega menu, which isn't in the HTML until it
+                // opens — so crawlers never saw those links.
                 <div
                   key={item.name}
                   onMouseEnter={() => setOpenMenu(item.name)}
+                  className="nav-link-underline flex items-center gap-1 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:text-[#185FA5] dark:text-slate-200 dark:hover:text-brand-cyan"
                 >
+                  <Link href={item.href}>{item.name}</Link>
                   <button
                     type="button"
                     aria-haspopup="true"
                     aria-expanded={openMenu === item.name ? "true" : "false"}
+                    aria-label={`Show ${item.name} menu`}
                     onClick={() => setOpenMenu(item.name)}
-                    className="nav-link-underline flex items-center gap-1 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:text-[#185FA5] dark:text-slate-200 dark:hover:text-brand-cyan"
+                    className="flex items-center"
                   >
-                    {item.name}
                     <ChevronDown
                       className={`h-3.5 w-3.5 transition-transform duration-300 ${
                         openMenu === item.name ? "rotate-180" : ""

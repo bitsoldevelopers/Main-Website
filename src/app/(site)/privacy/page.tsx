@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "BITSOL Marketing's Privacy Policy — how we collect, use, and protect your personal data.",
   alternates: { canonical: "https://bitsolmarketing.com/privacy" },
-  robots: { index: false, follow: false },
+  robots: { index: false, follow: true },
 };
 
 export default function PrivacyPage() {

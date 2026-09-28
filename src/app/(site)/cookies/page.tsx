@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "How BITSOL Marketing uses essential, performance and analytics cookies on this website, and how you can manage them.",
   alternates: { canonical: "https://bitsolmarketing.com/cookies" },
-  robots: { index: false, follow: false },
+  robots: { index: false, follow: true },
 };
 
 export default function CookiesPage() {
