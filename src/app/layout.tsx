@@ -68,6 +68,11 @@ export const metadata: Metadata = {
   verification: {
     google: "5_RFeyfgeVNvRbrwLfiLK_2nnc81N04BypWiVuQDPgE",
   },
+  // Verifies the site for the AdSense account. The meta tag is in the server
+  // HTML, so verification doesn't depend on the ad script having run.
+  other: {
+    "google-adsense-account": "ca-pub-3048586262273150",
+  },
   robots: {
     index: true,
     follow: true,
@@ -218,6 +223,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             gtag('config', 'G-J473YSMZKE');
           `}
         </Script>
+        {/* Google AdSense. Loads once the browser is idle, like analytics, so
+            ad code never competes with the page for the main thread. */}
+        <Script
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3048586262273150"
+          crossOrigin="anonymous"
+          strategy="lazyOnload"
+        />
       </head>
       <body
         className={`${montserrat.variable} font-sans antialiased bg-white dark:bg-[#050816] text-slate-900 dark:text-white transition-colors duration-300`}
