@@ -186,7 +186,7 @@ If your salespeople spend most of their day answering the same five questions, B
 3. lead generation services → /blog/lead-generation-services-pakistan
 4. CRM development company → /blog/crm-development-company-pakistan
 5. AI automation services → /services/ai-automation
-6. how to automate sales leads → /blog/how-to-automate-sales-leads
+6. how to automate sales leads → /blog/ai-powered-lead-generation-pakistan-2026-complete-playbook
 
 ## Image Suggestions & Alt Text
 

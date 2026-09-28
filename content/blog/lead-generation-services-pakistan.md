@@ -215,7 +215,7 @@ If leads are arriving but not converting, the cause is usually definition or res
 ## Suggested Internal Links
 
 1. choosing a lead generation agency → /blog/best-lead-generation-agency-pakistan
-2. B2B lead generation in Pakistan → /blog/b2b-lead-generation-pakistan
+2. B2B lead generation in Pakistan → /blog/b2b-digital-marketing-pakistan-generate-business-leads-2026
 3. lead generation funnel for Pakistani businesses → /blog/lead-generation-funnel-pakistan
 4. Google Maps lead generation → /blog/google-maps-lead-generation
 5. WhatsApp automation → /services/ai-automation

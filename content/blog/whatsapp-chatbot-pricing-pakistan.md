@@ -182,7 +182,7 @@ If you want a realistic monthly cost estimate before committing to any build, BI
 
 1. WhatsApp chatbot development → /blog/whatsapp-chatbot-development-company-pakistan
 2. WhatsApp API vs Business App → /blog/whatsapp-api-vs-whatsapp-business-app
-3. WhatsApp chatbot ROI → /blog/whatsapp-chatbot-roi-worth-it
+3. WhatsApp chatbot ROI → /blog/whatsapp-ai-chatbot-customer-service-roi
 4. AI automation services → /services/ai-automation
 5. our pricing → /pricing
 6. contact us → /contact

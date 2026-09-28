@@ -181,7 +181,7 @@ If leads are arriving but not converting, the problem is often definition or res
 ## Suggested Internal Links
 
 1. lead generation services → /blog/lead-generation-services-pakistan
-2. B2B lead generation in Pakistan → /blog/b2b-lead-generation-pakistan
+2. B2B lead generation in Pakistan → /blog/b2b-digital-marketing-pakistan-generate-business-leads-2026
 3. Google Maps lead generation → /blog/google-maps-lead-generation
 4. WhatsApp automation → /services/ai-automation
 5. Google Ads agency → /blog/google-ads-agency-pakistan
