@@ -60,6 +60,6 @@
     "puppeteer": "^25.0.4"
   },
   "overrides": {
-    "postcss": "^8.5.10"
+    "postcss": "$postcss"
   }
 }
