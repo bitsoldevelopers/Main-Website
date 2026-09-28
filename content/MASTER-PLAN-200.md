@@ -1,8 +1,15 @@
 # BITSOL Marketing — 200 Article Master Plan
 
-**Status:** Planning document. Nothing published, nothing deployed.
+**Status:** **Writing complete — all 200 entries covered.** Nothing from batches 11 onwards is published yet; nothing is auto-deployed.
 **Article standard:** 1,200–1,500 words each, full SEO block per your production standard.
-**Output convention:** `content/blog/<slug>.md`
+**Output convention:**
+- `content/blog/<slug>.md` — new articles (148 files)
+- `content/refresh/<existing-slug>.md` — rewrites that replace a published article at its current URL (23 files)
+- `content/pages/<route>.md` — upgrade copy for existing Next.js routes, **never** published through the blog API (3 files)
+
+**Coverage:** 174 files cover all 200 entries. The difference is 26 entries that were merged into other articles as sections rather than written as separate pages.
+
+**Publishing state (last checked 2026-09-28):** 233 articles live on the site. 88 of the new articles are live; 60 are written but not yet published. Publish with `node scripts/publish-seo-packages.mjs --dry-run` first, then `--publish`. The refresh packages target URLs that already exist, so the API returns 409 on a plain POST — they need an update path, and 5 of them target articles that were never published and can go out as new posts.
 
 ---
 
@@ -281,7 +288,25 @@
 
 ---
 
-## Decisions Required Before Full Production
+## Decisions — Resolved 2026-09-17
+
+The four decisions below were made by you and have been applied to every affected entry. The original analysis is kept underneath for reference.
+
+| Decision | Chosen approach | Result |
+|---|---|---|
+| **1. 23 DUP entries** | Refresh the existing published article, keeping its URL and accumulated authority | 23 packages in `content/refresh/`, each with a "Refresh Notes" block listing what changed. Unverifiable claims — "300% more leads", "cut costs by 60%", "4–8x ROAS", "#1 on Google" — were removed throughout. |
+| **2. 28 MERGE entries** | Fold the sibling into the primary article as a dedicated section | 6 folded into refreshes or a combined article; 20 added as sections inside 15 existing articles, recorded in each file's `**Merged Plan Entries:**` header line. |
+| **3. 3 PAGE entries** | Write upgrade copy for the existing city routes; do not create competing blog posts | 3 packages in `content/pages/` for Lahore, Islamabad and Karachi. |
+| **4. "Best [X]" titles** | Buyer's-guide framing, no self-awarded rankings | Applied throughout. The city-page packages also flag existing "top/leading agency" claims and the unverified "150+ businesses" figure for removal. |
+
+**Two follow-ups for publishing:**
+
+1. **Cannibalisation:** the live post `/blog/how-to-rank-website-on-google` targets the same query as the refreshed `seo-2025-guide-rank-on-google`. Redirect or canonicalise one to the other.
+2. **Schema risk:** the Islamabad and Karachi routes declare `LocalBusiness` for cities where no street address is shown. Switch to `ProfessionalService` with `areaServed` unless a genuine office exists there.
+
+---
+
+## Decisions Required Before Full Production *(original analysis, kept for reference)*
 
 ### 1. Twenty-four entries duplicate articles you have already published
 
