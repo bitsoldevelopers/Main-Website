@@ -9,20 +9,24 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  role      Role     @default(STUDENT)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  courses   Course[]
+  id            String     @id @default(cuid())
+  email         String     @unique
+  name          String?
+  password      String
+  role          Role       @default(STUDENT)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  courses       Course[]
+  assignedLeads Lead[]     @relation("LeadAssignee")
+  tasks         Task[]     @relation("TaskAssignee")
 }
 
 enum Role {
   STUDENT
   ADMIN
   CLIENT
+  EDITOR
+  MANAGER
 }
 
 model Course {
@@ -51,11 +55,742 @@ model Blog {
 }
 
 model Lead {
+  id           String     @id @default(cuid())
+  name         String
+  email        String
+  subject      String
+  message      String     @db.Text
+  status       String     @default("NEW")
+  // CRM fields added by the unified-platform migration. Rows created before
+  // it simply have these as NULL / defaults.
+  phone        String?
+  company      String?
+  country      String?
+  city         String?
+  source       String     @default("website")
+  pageUrl      String?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  priority     String     @default("NORMAL")
+  followUpAt   DateTime?
+  assignedToId String?
+  assignedTo   User?      @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  notes        LeadNote[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @default(now()) @updatedAt
+
+  // Structured contact profile, added by the lead-automation migration.
+  // Website inquiries created before it have these as NULL; `name`, `email`
+  // and `phone` above stay the display/primary values for every lead.
+  firstName           String?
+  lastName            String?
+  jobTitle            String?       @db.VarChar(300)
+  website             String?       @db.VarChar(500)
+  linkedinUrl         String?       @db.VarChar(500)
+  contactLocation     String?       @db.VarChar(300)
+  companyDescription  String?       @db.Text
+  companyId           String?
+  companyRef          Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  // Normalised keys used by the duplicate detector.
+  linkedinKey         String?
+  identityKey         String?
+  // The one address automations send to, and why it was picked.
+  outreachEmail       String?
+  outreachEmailReason String?
+  // True once an admin picked the outreach address by hand; imports then
+  // leave the choice alone.
+  outreachLocked      Boolean       @default(false)
+  personalization     String?       @db.Text
+  // Where the lead came from. `source` above is the source type.
+  sourceName          String?       @db.VarChar(300)
+  sourceWorksheet     String?       @db.VarChar(300)
+  sourceRow           Int?
+  sourceImportId      String?
+  leadSourceId        String?
+  leadSource          LeadSource?   @relation(fields: [leadSourceId], references: [id], onDelete: SetNull)
+  lastContactedAt     DateTime?
+  // Next automated touch; `followUpAt` above is the human reminder.
+  nextFollowUpAt      DateTime?
+
+  emails     LeadEmail[]
+  phones     LeadPhone[]
+  activities LeadActivity[]
+  tags       LeadTag[]
+  runs       AutomationRun[]
+  messages   EmailMessage[]
+  followUps  FollowUp[]
+  tasks      Task[]
+  importRows LeadImportRow[]
+
+  @@index([status])
+  @@index([utmCampaign])
+  @@index([assignedToId])
+  @@index([companyId])
+  @@index([linkedinKey])
+  @@index([identityKey])
+  @@index([source])
+  @@index([sourceImportId])
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  author    String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
+
+/// One row per notable admin/system event, shown at /admin/activity.
+model ActivityLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  entity    String
+  entityId  String?
+  detail    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity])
+}
+
+model Testimonial {
   id        String   @id @default(cuid())
   name      String
-  email     String
-  subject   String
-  message   String   @db.Text
-  status    String   @default("NEW")
+  title     String
+  company   String?
+  quote     String   @db.Text
+  avatar    String?
+  rating    Int      @default(5)
+  order     Int      @default(0)
+  published Boolean  @default(true)
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String   @db.Text
+  answer    String   @db.Text
+  page      String   @default("home")
+  order     Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([page])
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  filename  String
+  path      String   @unique
+  mime      String
+  size      Int
+  width     Int?
+  height    Int?
+  alt       String?
+  createdAt DateTime @default(now())
+}
+
+// Hero images for blog posts published by the content automation. Stored in
+// the database, not public/uploads: a Hostinger deploy replaces the app
+// directory and files written there are lost. Always WebP.
+model BlogImage {
+  id        String   @id @default(cuid())
+  // File name in the public URL: /blog-images/<name>
+  name      String   @unique
+  data      Bytes    @db.MediumBlob
+  width     Int
+  height    Int
+  createdAt DateTime @default(now())
+}
+
+// A LinkedIn company page or Facebook Page connected from Admin → Social.
+// accessToken is encrypted with a key derived from ADMIN_SECRET
+// (src/lib/admin/social/crypto.ts), so rotating ADMIN_SECRET disconnects
+// every account.
+model SocialAccount {
+  id          String       @id @default(cuid())
+  platform    String // LINKEDIN | FACEBOOK
+  // LinkedIn organization id or Facebook Page id
+  externalId  String
+  name        String
+  accessToken String       @db.Text
+  // NULL when the token does not expire (Facebook Page tokens)
+  expiresAt   DateTime?
+  connectedBy String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
+  posts       SocialPost[]
+
+  @@unique([platform, externalId])
+}
+
+// Every publish attempt from Admin → Social, including the failed ones.
+model SocialPost {
+  id          String         @id @default(cuid())
+  accountId   String?
+  account     SocialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  platform    String
+  accountName String
+  text        String         @db.Text
+  link        String?        @db.Text
+  status      String // PUBLISHED | FAILED
+  // The post's id on the platform, and its public URL
+  externalId  String?
+  permalink   String?        @db.Text
+  error       String?        @db.Text
+  createdBy   String
+  createdAt   DateTime       @default(now())
+
+  @@index([createdAt])
+  @@index([accountId])
+}
+
+model Redirect {
+  id        String   @id @default(cuid())
+  fromPath  String   @unique
+  toPath    String
+  permanent Boolean  @default(true)
+  active    Boolean  @default(true)
+  hits      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  platform    String    @default("META")
+  objective   String?
+  budget      Float?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String    @default("DRAFT")
+  landingPage String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  @@index([utmCampaign])
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// ─── CRM: companies, contact points, timeline, tags ─────────────────────────
+
+/// One row per organisation; many leads (contacts) can belong to it.
+model Company {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(300)
+  // Normalised name ("abc technologies"), so "ABC Technologies Ltd." and
+  // "abc technologies" are the same company.
+  nameKey     String   @unique
+  website     String?  @db.VarChar(500)
+  domain      String?
+  description String?  @db.Text
+  phone       String?
+  location    String?  @db.VarChar(300)
+  industry    String?
+  employees   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  leads       Lead[]
+
+  @@index([domain])
+}
+
+/// The three addresses a contact can have, kept separate and never merged.
+model LeadEmail {
+  id             String    @id @default(cuid())
+  leadId         String
+  lead           Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  // Exactly as supplied by the source.
+  email          String    @db.VarChar(320)
+  // Lower-cased and trimmed, for matching.
+  emailKey       String
+  // PRIMARY (Email 1) | SECONDARY (Email 2) | PERSONAL (Personal Email)
+  type           String
+  // VALID | RISKY | INVALID | UNCHECKED
+  validity       String    @default("UNCHECKED")
+  validityReason String?
+  isPrimary      Boolean   @default(false)
+  isOutreach     Boolean   @default(false)
+  bouncedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@unique([leadId, type])
+  @@index([emailKey])
+}
+
+model LeadPhone {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  phone     String
+  // Digits only, for matching.
+  phoneKey  String
+  // PRIMARY | SECONDARY | TERTIARY | COMPANY
+  type      String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([leadId, type])
+  @@index([phoneKey])
+}
+
+/// Per-lead timeline. ActivityLog stays the panel-wide audit log.
+model LeadActivity {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  detail    String?  @db.Text
+  actor     String   @default("System")
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
+}
+
+/// Registry of where leads come from. Every source type (Google Sheets, CSV,
+/// website forms, and later Meta Lead Ads, WhatsApp, API…) feeds the same CRM.
+model LeadSource {
+  id         String                 @id @default(cuid())
+  // google_sheets | csv | website | manual | …
+  type       String
+  name       String                 @db.VarChar(300)
+  // Stable identity, e.g. "google_sheets:<spreadsheetId>:<gid>".
+  key        String                 @unique
+  createdAt  DateTime               @default(now())
+  leads      Lead[]
+  imports    LeadImport[]
+  worksheets GoogleSheetWorksheet[]
+
+  @@index([type])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  leads     LeadTag[]
+}
+
+model LeadTag {
+  leadId    String
+  tagId     String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([leadId, tagId])
+  @@index([tagId])
+}
+
+/// Addresses and domains that must never receive automated email.
+model SuppressionEntry {
+  id        String   @id @default(cuid())
+  // A normalised email, or "@domain.com" for a whole domain.
+  value     String   @unique
+  // UNSUBSCRIBED | BOUNCED | COMPLAINED | MANUAL
+  reason    String
+  source    String?
+  note      String?  @db.Text
+  createdAt DateTime @default(now())
+}
+
+// ─── Google Sheets source ───────────────────────────────────────────────────
+
+model GoogleSheetConnection {
+  id             String                 @id @default(cuid())
+  googleEmail    String                 @unique
+  displayName    String?
+  // OAuth tokens, AES-256-GCM encrypted (src/lib/automation/crypto.ts).
+  accessToken    String                 @db.Text
+  refreshToken   String                 @db.Text
+  tokenExpiresAt DateTime
+  scopes         String                 @db.Text
+  // ACTIVE | ERROR
+  status         String                 @default("ACTIVE")
+  lastError      String?                @db.Text
+  connectedBy    String
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @default(now()) @updatedAt
+  worksheets     GoogleSheetWorksheet[]
+}
+
+/// One linked tab of one spreadsheet, with its mapping, import settings and
+/// sync schedule.
+model GoogleSheetWorksheet {
+  id                   String                @id @default(cuid())
+  connectionId         String
+  connection           GoogleSheetConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  leadSourceId         String?
+  leadSource           LeadSource?           @relation(fields: [leadSourceId], references: [id], onDelete: SetNull)
+  spreadsheetId        String
+  spreadsheetName      String                @db.VarChar(300)
+  // The tab's gid.
+  worksheetId          Int
+  worksheetTitle       String                @db.VarChar(300)
+  // { crmField: "Sheet column header" }
+  mapping              Json
+  // SKIP | UPDATE | REVIEW
+  duplicateMode        String                @default("UPDATE")
+  autoStartAutomation  Boolean               @default(false)
+  automationId         String?
+  // UNASSIGNED | USER | ROUND_ROBIN | TEAM
+  assignmentMode       String                @default("UNASSIGNED")
+  assigneeId           String?
+  assignmentTeam       String?
+  tags                 Json                  @default("[]")
+  // 0 = manual only.
+  syncIntervalMinutes  Int                   @default(0)
+  // IDLE | QUEUED | RUNNING | OK | ERROR
+  syncStatus           String                @default("IDLE")
+  lastSyncAt           DateTime?
+  nextSyncAt           DateTime?
+  lastSuccessfulSyncAt DateTime?
+  lastError            String?               @db.Text
+  rowsProcessed        Int                   @default(0)
+  rowsCreated          Int                   @default(0)
+  rowsUpdated          Int                   @default(0)
+  rowsSkipped          Int                   @default(0)
+  rowsFailed           Int                   @default(0)
+  createdBy            String
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @default(now()) @updatedAt
+  imports              LeadImport[]
+  rows                 LeadImportRow[]
+
+  @@unique([spreadsheetId, worksheetId])
+  @@index([nextSyncAt])
+}
+
+/// One import batch from any source (a Google Sheets sync, a CSV upload…).
+model LeadImport {
+  id                String                @id @default(cuid())
+  sourceType        String
+  leadSourceId      String?
+  leadSource        LeadSource?           @relation(fields: [leadSourceId], references: [id], onDelete: SetNull)
+  worksheetId       String?
+  worksheet         GoogleSheetWorksheet? @relation(fields: [worksheetId], references: [id], onDelete: SetNull)
+  label             String                @db.VarChar(300)
+  // MANUAL | SCHEDULED
+  trigger           String                @default("MANUAL")
+  // QUEUED | RUNNING | COMPLETED | FAILED
+  status            String                @default("QUEUED")
+  // Snapshot of the mapping and settings this batch ran with.
+  settings          Json
+  // Uploaded rows waiting to be processed (CSV); cleared when the batch ends.
+  payload           String?               @db.LongText
+  totalRows         Int                   @default(0)
+  createdCount      Int                   @default(0)
+  updatedCount      Int                   @default(0)
+  duplicateCount    Int                   @default(0)
+  invalidCount      Int                   @default(0)
+  skippedCount      Int                   @default(0)
+  failedCount       Int                   @default(0)
+  automationStarted Int                   @default(0)
+  quality           Json?
+  error             String?               @db.Text
+  startedBy         String
+  createdAt         DateTime              @default(now())
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  rows              LeadImportRow[]
+
+  @@index([worksheetId, createdAt])
+  @@index([createdAt])
+}
+
+/// What happened to each source row. For a linked worksheet there is one row
+/// per stable source key, updated in place by later syncs.
+model LeadImportRow {
+  id           String                @id @default(cuid())
+  importId     String
+  import       LeadImport            @relation(fields: [importId], references: [id], onDelete: Cascade)
+  worksheetId  String?
+  worksheet    GoogleSheetWorksheet? @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  rowNumber    Int
+  // Hash of the row's strongest identity, stable when rows move.
+  sourceKey    String
+  // Hash of the row's mapped values, to detect edits.
+  sourceHash   String
+  // The original cell values, exactly as the source supplied them.
+  raw          Json
+  leadId       String?
+  lead         Lead?                 @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  // CREATED | UPDATED | UNCHANGED | DUPLICATE | REVIEW | INVALID | SKIPPED | FAILED
+  outcome      String
+  matchLevel   String?
+  message      String?               @db.Text
+  lastSyncedAt DateTime              @default(now())
+
+  @@index([importId, outcome])
+  @@index([worksheetId, sourceKey])
+  @@index([leadId])
+}
+
+// ─── Email: templates, sequences, messages, events ──────────────────────────
+
+model EmailTemplate {
+  id        String              @id @default(cuid())
+  name      String
+  subject   String              @db.VarChar(300)
+  // Plain text with {{variables}}; rendered to simple HTML when sent.
+  body      String              @db.Text
+  ctaLabel  String?
+  ctaUrl    String?             @db.VarChar(500)
+  isDefault Boolean             @default(false)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @default(now()) @updatedAt
+  steps     EmailSequenceStep[]
+  messages  EmailMessage[]
+}
+
+model EmailSequence {
+  id          String              @id @default(cuid())
+  name        String
+  description String?             @db.Text
+  isDefault   Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @default(now()) @updatedAt
+  steps       EmailSequenceStep[]
+  automations Automation[]
+}
+
+model EmailSequenceStep {
+  id              String           @id @default(cuid())
+  sequenceId      String
+  sequence        EmailSequence    @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  order           Int
+  name            String
+  // Days to wait after the previous email (0 = immediately).
+  delayDays       Int              @default(0)
+  templateId      String
+  template        EmailTemplate    @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  automationSteps AutomationStep[]
+
+  @@index([sequenceId, order])
+}
+
+model EmailMessage {
+  id                String         @id @default(cuid())
+  leadId            String
+  lead              Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  runId             String?
+  run               AutomationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  templateId        String?
+  template          EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  stepOrder         Int?
+  toEmail           String         @db.VarChar(320)
+  fromEmail         String
+  replyTo           String?
+  subject           String         @db.VarChar(500)
+  bodyText          String         @db.Text
+  bodyHtml          String         @db.MediumText
+  // QUEUED | SENT | DELIVERED | OPENED | CLICKED | REPLIED | BOUNCED | COMPLAINED | FAILED
+  status            String         @default("QUEUED")
+  provider          String
+  providerMessageId String?
+  error             String?        @db.Text
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  repliedAt         DateTime?
+  bouncedAt         DateTime?
+  openCount         Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @default(now()) @updatedAt
+  events            EmailEvent[]
+
+  @@index([leadId, createdAt])
+  @@index([providerMessageId])
+  @@index([status])
+  @@index([sentAt])
+}
+
+model EmailEvent {
+  id              String        @id @default(cuid())
+  messageId       String?
+  message         EmailMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  leadId          String?
+  type            String
+  // The provider's delivery id for this webhook, so retries are idempotent.
+  providerEventId String?       @unique
+  payload         Json?
+  occurredAt      DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+
+  @@index([messageId])
+  @@index([type, occurredAt])
+}
+
+// ─── Automation engine ──────────────────────────────────────────────────────
+
+model Automation {
+  id          String                @id @default(cuid())
+  name        String
+  description String?               @db.Text
+  // DRAFT | ACTIVE | PAUSED
+  status      String                @default("DRAFT")
+  // MANUAL | IMPORT
+  trigger     String                @default("MANUAL")
+  sequenceId  String
+  sequence    EmailSequence         @relation(fields: [sequenceId], references: [id], onDelete: Restrict)
+  // After the last email, hand the lead to a person.
+  createTask  Boolean               @default(true)
+  taskTitle   String?               @db.VarChar(300)
+  taskNote    String?               @db.Text
+  taskDueDays Int                   @default(1)
+  isDefault   Boolean               @default(false)
+  createdBy   String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @default(now()) @updatedAt
+  steps       AutomationStep[]
+  conditions  AutomationCondition[]
+  runs        AutomationRun[]
+}
+
+/// The workflow an automation executes, materialised from its sequence:
+/// SEND_EMAIL → WAIT → SEND_EMAIL → … → CREATE_TASK.
+model AutomationStep {
+  id             String             @id @default(cuid())
+  automationId   String
+  automation     Automation         @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  order          Int
+  // SEND_EMAIL | WAIT | CREATE_TASK
+  type           String
+  label          String
+  sequenceStepId String?
+  sequenceStep   EmailSequenceStep? @relation(fields: [sequenceStepId], references: [id], onDelete: SetNull)
+  waitDays       Int?
+
+  @@index([automationId, order])
+}
+
+model AutomationCondition {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  // ENTRY (who may be enrolled) | STOP (what ends a run)
+  kind         String
+  field        String
+  operator     String
+  value        String?
+  // The mandatory stop conditions are locked: visible, not removable.
+  locked       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  @@index([automationId])
+}
+
+/// One lead going through one automation.
+model AutomationRun {
+  id           String         @id @default(cuid())
+  automationId String
+  automation   Automation     @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  leadId       String
+  lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  // ACTIVE | PAUSED | STOPPED | COMPLETED | FAILED
+  status       String         @default("ACTIVE")
+  stepIndex    Int            @default(0)
+  nextRunAt    DateTime?
+  stopReason   String?
+  emailsSent   Int            @default(0)
+  startedBy    String
+  startedAt    DateTime       @default(now())
+  finishedAt   DateTime?
+  updatedAt    DateTime       @default(now()) @updatedAt
+  messages     EmailMessage[]
+  followUps    FollowUp[]
+  tasks        Task[]
+
+  @@index([leadId])
+  @@index([automationId, status])
+  @@index([status, nextRunAt])
+}
+
+/// Database-backed job queue. Workers claim due rows; a crashed worker's
+/// lock expires and the job is retried.
+model AutomationJob {
+  id          String    @id @default(cuid())
+  // RUN_STEP | IMPORT | SHEET_SYNC
+  type        String
+  refId       String
+  runAt       DateTime
+  // PENDING | RUNNING | DONE | FAILED | CANCELLED
+  status      String    @default("PENDING")
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  lockedAt    DateTime?
+  lockedBy    String?
+  lastError   String?   @db.Text
+  result      String?   @db.Text
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([status, runAt])
+  @@index([type, refId])
+}
+
+model FollowUp {
+  id          String         @id @default(cuid())
+  leadId      String
+  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  runId       String?
+  run         AutomationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  // EMAIL (automated) | TASK (human)
+  type        String         @default("EMAIL")
+  title       String         @db.VarChar(300)
+  dueAt       DateTime
+  // SCHEDULED | SENT | DONE | CANCELLED
+  status      String         @default("SCHEDULED")
+  stepOrder   Int?
+  note        String?        @db.Text
+  createdAt   DateTime       @default(now())
+  completedAt DateTime?
+
+  @@index([status, dueAt])
+  @@index([leadId])
+}
+
+model Task {
+  id           String         @id @default(cuid())
+  leadId       String?
+  lead         Lead?          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  runId        String?
+  run          AutomationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  title        String         @db.VarChar(300)
+  description  String?        @db.Text
+  dueAt        DateTime?
+  // OPEN | DONE | CANCELLED
+  status       String         @default("OPEN")
+  priority     String         @default("NORMAL")
+  assignedToId String?
+  assignedTo   User?          @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  // AUTOMATION | MANUAL
+  source       String         @default("MANUAL")
+  createdBy    String
+  createdAt    DateTime       @default(now())
+  completedAt  DateTime?
+
+  @@index([status, dueAt])
+  @@index([leadId])
+  @@index([assignedToId])
 }
