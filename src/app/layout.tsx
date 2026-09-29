@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
-import "@/components/navbar/navbar.css";
-import SmoothScroll from "@/components/SmoothScroll";
-import Navbar from "@/components/navbar/Navbar";
-import Footer from "@/components/Footer";
-import { Entropy } from "@/components/ClientDynamics";
 import { JsonLd } from "@/components/JsonLd";
 import { DEFAULT_OG_IMAGE, SITE_URL } from "@/lib/seo";
 
@@ -88,8 +83,6 @@ export const metadata: Metadata = {
 
 import { ThemeProvider } from "@/components/theme-provider";
 import Script from "next/script";
-
-import { ContactPopup, FloatingDock } from "@/components/ClientDynamics";
 
 const siteSchema = {
   "@context": "https://schema.org",
@@ -249,18 +242,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           enableSystem
           disableTransitionOnChange
         >
-          <div className="relative min-h-screen">
-            <Entropy className="opacity-40" />
-            <SmoothScroll>
-              <div className="flex min-h-screen flex-col relative z-10">
-                <Navbar />
-                <main className="flex-grow">{children}</main>
-                <Footer />
-              </div>
-            </SmoothScroll>
-            <ContactPopup />
-            <FloatingDock />
-          </div>
+          {/* Page chrome (navbar, footer, widgets) lives in app/(site)/layout.tsx;
+              the admin under app/admin renders its own shell. */}
+          {children}
         </ThemeProvider>
       </body>
     </html>

@@ -48,3 +48,6 @@ nextjs-dev.log
 *nextjs-dev.log
 
 .preview/
+
+# runtime media-library uploads (live on the server, not in git)
+/public/uploads/

@@ -16,3 +16,8 @@ export const FloatingDock = dynamic(
   () => import("@/components/FloatingDock").then((m) => m.FloatingDock),
   { ssr: false }
 );
+
+export const ChatWidget = dynamic(
+  () => import("@/components/ChatWidget").then((m) => m.ChatWidget),
+  { ssr: false }
+);

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a1330" />
+  <title>BITSOL MARKETING — AI Assistant</title>
+  <meta name="description" content="BITSOL MARKETING Pvt. Ltd. — AI Admissions Counselor & Support Assistant." />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-bg" aria-hidden="true">
+    <span class="blob blob-1"></span>
+    <span class="blob blob-2"></span>
+    <span class="blob blob-3"></span>
+  </div>
+
+  <main class="chat-shell" role="main">
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="brand">
+        <div class="brand-logo">🤖</div>
+        <div class="brand-text">
+          <h1 class="brand-name">BITSOL MARKETING</h1>
+          <p class="brand-sub">
+            <span class="status-dot"></span> AI Assistant • Online
+          </p>
+        </div>
+      </div>
+      <button id="restartBtn" class="icon-btn" title="Restart conversation" aria-label="Restart conversation">
+        ↻
+      </button>
+    </header>
+
+    <!-- Messages -->
+    <section id="chatWindow" class="chat-window" aria-live="polite" aria-label="Conversation"></section>
+
+    <!-- Input -->
+    <footer class="chat-input">
+      <form id="inputForm" autocomplete="off">
+        <input
+          id="userInput"
+          type="text"
+          placeholder="Type your message…"
+          aria-label="Type your message"
+        />
+        <button type="submit" class="send-btn" aria-label="Send">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </form>
+      <p class="footer-note">Powered by BITSOL MARKETING • <a id="waFooterLink" href="#" target="_blank" rel="noopener">Chat on WhatsApp</a></p>
+    </footer>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

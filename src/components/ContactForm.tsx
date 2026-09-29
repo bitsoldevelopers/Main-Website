@@ -4,15 +4,20 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Send, CheckCircle } from "lucide-react";
+import { captureUtm } from "@/lib/utm";
 
 export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bots fill every field; humans never see this one.
+  const [honeypot, setHoneypot] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    phone: "",
+    company: "",
     service: "ai",
     message: ""
   });
@@ -35,7 +40,12 @@ export function ContactForm() {
       const response = await fetch('/api/contact', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          website: honeypot,
+          pageUrl: window.location.pathname,
+          ...captureUtm(),
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to send inquiry");
@@ -45,7 +55,7 @@ export function ContactForm() {
       const serviceLabel = serviceLabels[formData.service] || formData.service;
       const waMsg = `Hello BITSOL Marketing! I just submitted an inquiry.\n\nName: ${formData.name}\nEmail: ${formData.email}\nService: ${serviceLabel}\nMessage: ${formData.message}`;
       window.open(`https://wa.me/923120141581?text=${encodeURIComponent(waMsg)}`, "_blank");
-    } catch (err) {
+    } catch {
       setError("Something went wrong. Please try again or contact us directly.");
     } finally {
       setIsSubmitting(false);
@@ -72,7 +82,7 @@ export function ContactForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="relative space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <label className="text-sm font-bold uppercase tracking-widest text-brand-muted">Name</label>
@@ -95,6 +105,42 @@ export function ContactForm() {
             placeholder="john@company.com"
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <label className="text-sm font-bold uppercase tracking-widest text-brand-muted">Phone / WhatsApp <span className="font-normal normal-case tracking-normal opacity-60">(optional)</span></label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-4 outline-none focus:border-brand-cyan transition-colors text-slate-900 dark:text-white"
+            placeholder="+92 300 1234567"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-bold uppercase tracking-widest text-brand-muted">Company <span className="font-normal normal-case tracking-normal opacity-60">(optional)</span></label>
+          <input
+            value={formData.company}
+            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+            className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-4 outline-none focus:border-brand-cyan transition-colors text-slate-900 dark:text-white"
+            placeholder="Your company"
+          />
+        </div>
+      </div>
+
+      {/* Honeypot — hidden from real visitors, tabbed past by screen readers. */}
+      <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">
+        <label>
+          Website
+          <input
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+          />
+        </label>
       </div>
 
       <div className="space-y-2">
