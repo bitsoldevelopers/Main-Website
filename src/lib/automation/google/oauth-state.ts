@@ -77,6 +77,8 @@ export function siteOrigin(req: Request): string {
   // redirect to the live site.
   if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return `http://${host}`;
   if (configured) return configured.replace(/\/+$/, "");
+  // The address the app listens on, not one Google could send anyone back to.
+  if (/^\d{1,3}(\.\d{1,3}){3}(:\d+)?$/.test(host)) return "https://bitsolmarketing.com";
   const proto = req.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "");
   return `${proto}://${host}`;
 }

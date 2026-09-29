@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { actorLabel, requireAdminAction } from "@/lib/admin/auth";
 import { isCryptoConfigured } from "@/lib/automation/crypto";
 import { googleAuthUrl, googleRedirectUri, missingGoogleEnv } from "@/lib/automation/google/client";
+import { redirectToPath, withQuery } from "@/lib/redirect";
 import { GOOGLE_STATE_COOKIE, issueState, safeReturnTo, siteOrigin, stateCookieOptions } from "@/lib/automation/google/oauth-state";
 
 /**
@@ -14,15 +15,11 @@ export async function GET(req: NextRequest) {
     session = await requireAdminAction("outreach.manage");
   } catch (err) {
     const forbidden = err instanceof Error && err.message === "Forbidden";
-    return NextResponse.redirect(new URL(forbidden ? "/admin/forbidden" : "/admin/login", req.url));
+    return redirectToPath(forbidden ? "/admin/forbidden" : "/admin/login");
   }
 
   const returnTo = safeReturnTo(req.nextUrl.searchParams.get("returnTo"));
-  const back = (error: string) => {
-    const target = new URL(returnTo, req.url);
-    target.searchParams.set("error", error);
-    return NextResponse.redirect(target);
-  };
+  const back = (error: string) => redirectToPath(withQuery(returnTo, "error", error));
 
   const missing = missingGoogleEnv();
   if (missing.length > 0) return back(`Set ${missing.join(" and ")} on the server before connecting Google.`);

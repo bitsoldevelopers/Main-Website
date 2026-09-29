@@ -16,8 +16,14 @@ Source (Google Sheets, CSV, website form, manual)
 Nothing is sent until steps 1–4 are done. Admin → Lead Automation → Settings
 shows the state of each.
 
-1. **Deploy.** `npm start` runs `prisma migrate deploy`, which applies the
-   pending migrations. They only add tables and columns.
+1. **Database, then deploy.** The migrations have to be applied to the live
+   database by hand: Hostinger starts the app from `server.js`, not
+   `npm start`, so `prisma migrate deploy` never runs there. Import
+   [`docs/sql/2026-09-29-database-update.sql`](sql/2026-09-29-database-update.sql)
+   in phpMyAdmin (export a backup first; the steps are at the top of the
+   file). It only adds tables and columns. To check the result, open
+   `https://bitsolmarketing.com/blog-images/x`: *Not found* means the tables
+   are there, *Image unavailable* means they are not.
 2. **Email provider.** `RESEND_API_KEY` is already set for lead notifications.
    In Resend, verify the domain outreach is sent from. A separate sending
    subdomain (for example `outreach.bitsolmarketing.com`) keeps cold outreach

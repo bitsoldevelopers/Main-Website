@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { readUnsubscribeToken } from "@/lib/automation/crypto";
 import { markUnsubscribed } from "@/lib/automation/engine";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { redirectToPath, withQuery } from "@/lib/redirect";
 
 /**
  * One-click unsubscribe (RFC 8058). Mail clients POST here when the reader
@@ -46,8 +47,6 @@ export async function POST(req: NextRequest) {
 }
 
 export function GET(req: NextRequest) {
-  const target = new URL("/unsubscribe", req.url);
   const token = req.nextUrl.searchParams.get("token");
-  if (token) target.searchParams.set("token", token);
-  return NextResponse.redirect(target);
+  return redirectToPath(token ? withQuery("/unsubscribe", "token", token) : "/unsubscribe");
 }
