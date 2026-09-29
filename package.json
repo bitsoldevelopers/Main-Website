@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node node_modules/next/dist/bin/next dev --turbopack",
-    "build": "node node_modules/next/dist/bin/next build",
+    "build": "node node_modules/next/dist/bin/next build --webpack",
     "build:hostinger": "npm run build && node prepare-hostinger.mjs",
     "start": "npx prisma migrate deploy && node server.js",
     "lint": "eslint",
@@ -63,7 +63,7 @@
     "vitest": "^3.2.7"
   },
   "overrides": {
-    "postcss": "^8.5.28",
+    "postcss": "$postcss",
     "deepmerge-ts": "^8.0.2"
   }
 }

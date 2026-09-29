@@ -1,4 +1,11 @@
-import type { NextConfig } from "next";
+// @ts-check
+
+// Plain JavaScript rather than next.config.ts: Hostinger's build server has a
+// glibc too old for Next's native SWC binary, so Next falls back to the WASM
+// build, which failed to compile a TypeScript config ("Cannot find module
+// ...next.config" from next.config.compiled.js). An .mjs file needs no
+// compiling. For the same reason `npm run build` uses webpack: Turbopack
+// requires the native binary.
 
 // Reported, not enforced, for now: the site's only Content-Security-Policy was
 // `upgrade-insecure-requests`, which protects against nothing. This lists the
@@ -27,7 +34,8 @@ const contentSecurityPolicy = [
   // policy and log a warning. The CDN already sends it as an enforced policy.
 ].join("; ");
 
-const nextConfig: NextConfig = {
+/** @type {import("next").NextConfig} */
+const nextConfig = {
   output: "standalone",
   images: {
     remotePatterns: [
