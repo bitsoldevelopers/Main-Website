@@ -51,3 +51,6 @@ nextjs-dev.log
 
 # runtime media-library uploads (live on the server, not in git)
 /public/uploads/
+
+# SSH deploy keys are secrets: keep them in repository secrets, never in git
+github_deploy_key*
