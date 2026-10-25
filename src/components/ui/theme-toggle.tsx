@@ -22,7 +22,7 @@ export function ThemeToggle() {
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="fixed bottom-8 right-8 z-[100] w-14 h-14 rounded-full bg-brand-cyan dark:bg-brand-purple text-brand-dark dark:text-white shadow-2xl flex items-center justify-center border-4 border-white dark:border-[#050816] transition-colors duration-500"
+      className="fixed bottom-8 right-8 z-[100] w-14 h-14 rounded-full bg-brand-cyan dark:bg-brand-purple text-brand-dark dark:text-white shadow-2xl flex items-center justify-center border-4 border-white dark:border-[#141414] transition-colors duration-500"
     >
       {theme === "dark" ? (
         <Sun className="w-6 h-6 animate-[spin_3s_linear_infinite]" />

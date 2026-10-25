@@ -76,7 +76,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
             transition={{ type: "spring", stiffness: 340, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={handleKeyDown}
-            className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/15 bg-white shadow-2xl dark:bg-[#0B1120] dark:border-white/10"
+            className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/15 bg-white shadow-2xl dark:bg-[#141414] dark:border-white/10"
           >
             <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4 dark:border-white/10">
               <Search className="h-5 w-5 shrink-0 text-slate-400" />
@@ -116,7 +116,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
                   onMouseEnter={() => setActiveIndex(i)}
                   className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm transition-colors ${
                     i === activeIndex
-                      ? "bg-[#185FA5]/10 text-[#185FA5] dark:bg-brand-cyan/10 dark:text-brand-cyan"
+                      ? "bg-[#0066ff]/10 text-[#0066ff] dark:bg-brand-cyan/10 dark:text-brand-cyan"
                       : "text-slate-700 dark:text-slate-200"
                   }`}
                 >

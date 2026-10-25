@@ -1,13 +1,36 @@
 import type { Metadata } from "next";
-import { Montserrat } from "next/font/google";
+import { Fraunces, Geist_Mono, Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { JsonLd } from "@/components/JsonLd";
 import { DEFAULT_OG_IMAGE, SITE_URL } from "@/lib/seo";
 
+// Editorial type system: Fraunces for display headings, Inter for text,
+// Geist Mono for eyebrow labels and small data.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: "variable",
+  axes: ["opsz", "SOFT", "WONK"],
+  display: "swap",
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+// Only the logo wordmark still uses Montserrat.
 const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["800"],
   display: "swap",
 });
 
@@ -188,8 +211,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://prod.spline.design" />
-        <link rel="dns-prefetch" href="https://prod.spline.design" />
         {/* Analytics loads once the browser is idle: on mid-range Android
             phones these scripts competed with the page for the main thread. */}
         <Script
@@ -225,7 +246,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         />
       </head>
       <body
-        className={`${montserrat.variable} font-sans antialiased bg-white dark:bg-[#050816] text-slate-900 dark:text-white transition-colors duration-300`}
+        className={`${fraunces.variable} ${inter.variable} ${geistMono.variable} ${montserrat.variable} font-sans antialiased bg-background text-foreground`}
         suppressHydrationWarning
       >
         <noscript>
@@ -236,10 +257,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             className="hidden invisible"
           />
         </noscript>
+        {/* The editorial theme is light only, so the visitor's OS preference
+            and the old toggle no longer switch the palette. */}
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
-          enableSystem
+          forcedTheme="light"
+          enableSystem={false}
           disableTransitionOnChange
         >
           {/* Page chrome (navbar, footer, widgets) lives in app/(site)/layout.tsx;

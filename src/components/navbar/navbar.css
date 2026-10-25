@@ -1,86 +1,52 @@
-/* ─── Floating glass navbar ──────────────────────────────────────────────── */
+/* ─── Flat editorial navbar ──────────────────────────────────────────────── */
+/* Transparent over the hero frame; paper and a hairline once the page scrolls. */
 .nav-glass {
-  background: rgba(255, 255, 255, 0.65);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.1);
-}
-
-.dark .nav-glass {
-  background: rgba(5, 8, 22, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s ease, height 0.3s ease, background-color 0.3s ease;
 }
 
 .nav-glass--scrolled {
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  backdrop-filter: blur(32px) saturate(180%);
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.14);
+  background: rgba(249, 248, 246, 0.9);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom-color: var(--border);
 }
 
-.dark .nav-glass--scrolled {
-  background: rgba(5, 8, 22, 0.85);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
-}
-
-/* ─── Animated underline for nav links ───────────────────────────────────── */
+/* ─── Nav links: a dot under the current section, shown on hover too ─────── */
 .nav-link-underline {
   position: relative;
-  letter-spacing: 0;
-  transition: letter-spacing 0.25s ease, color 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .nav-link-underline::after {
   content: "";
   position: absolute;
-  left: 1rem;
-  right: 1rem;
-  bottom: 0.25rem;
-  height: 2px;
+  left: 50%;
+  bottom: -0.1rem;
+  width: 5px;
+  height: 5px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #185fa5, #06b6d4);
-  transform: scaleX(0);
-  transform-origin: left;
+  background: var(--brand-accent);
+  transform: translateX(-50%) scale(0);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.nav-link-underline:hover {
-  letter-spacing: 0.01em;
+.nav-link-underline:hover::after,
+.nav-link-underline.is-active::after {
+  transform: translateX(-50%) scale(1);
 }
 
-.nav-link-underline:hover::after {
-  transform: scaleX(1);
-}
-
-/* ─── Primary CTA button ─────────────────────────────────────────────────── */
+/* ─── Primary CTA: ink pill ──────────────────────────────────────────────── */
 .nav-cta-button {
-  position: relative;
-  overflow: hidden;
   color: #fff;
-  background: linear-gradient(110deg, #185fa5, #2563eb 45%, #06b6d4);
-  background-size: 220% 220%;
-  animation: nav-cta-gradient 6s ease infinite;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  background: #141414;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .nav-cta-button:hover {
-  transform: translateY(-1px) scale(1.03);
-  box-shadow: 0 12px 32px rgba(6, 182, 212, 0.45);
-}
-
-@keyframes nav-cta-gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  background: #2a2a2a;
+  transform: translateY(-1px);
 }
 
 /* ─── Mobile fullscreen navigation ───────────────────────────────────────── */
@@ -89,7 +55,7 @@
   inset: 0;
   z-index: 350;
   display: flex;
-  background: rgba(5, 8, 22, 0.45);
+  background: rgba(20, 20, 20, 0.4);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
@@ -99,11 +65,7 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: #ffffff;
-}
-
-.dark .mobile-menu-content {
-  background-color: #050816;
+  background-color: #f9f8f6;
 }
 
 .body-scroll-lock {

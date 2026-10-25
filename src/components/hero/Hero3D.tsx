@@ -25,7 +25,7 @@ function AnimatedSphere() {
         onPointerOut={() => setHovered(false)}
       >
         <MeshDistortMaterial
-          color={hovered ? "#7C3AED" : "#00D9FF"}
+          color={hovered ? "#141414" : "#0066ff"}
           attach="material"
           distort={0.5}
           speed={2}
@@ -56,7 +56,7 @@ function Particles({ count = 5000 }) {
     <Points ref={pointsRef} positions={particlesPosition} stride={3} frustumCulled={false}>
       <PointMaterial
         transparent
-        color="#00D9FF"
+        color="#0066ff"
         size={0.02}
         sizeAttenuation={true}
         depthWrite={false}
@@ -72,7 +72,7 @@ export default function Hero3D() {
       <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
         <ambientLight intensity={0.5} />
         <directionalLight position={[10, 10, 5]} intensity={1} />
-        <pointLight position={[-10, -10, -5]} color="#7C3AED" intensity={2} />
+        <pointLight position={[-10, -10, -5]} color="#141414" intensity={2} />
         <AnimatedSphere />
         <Particles />
       </Canvas>

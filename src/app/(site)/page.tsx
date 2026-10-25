@@ -1,13 +1,16 @@
-import Hero from "@/components/hero/Hero";
+import EditorialHero from "@/components/home/EditorialHero";
 import Partners from "@/components/home/Partners";
-import ServicesGrid from "@/components/home/ServicesGrid";
-import Testimonials from "@/components/home/Testimonials";
+import ReelSection from "@/components/home/ReelSection";
 import PortfolioPreview from "@/components/home/PortfolioPreview";
+import ServicesGrid from "@/components/home/ServicesGrid";
+import ProcessSteps from "@/components/home/ProcessSteps";
+import PricingPreview from "@/components/home/PricingPreview";
+import Testimonials from "@/components/home/Testimonials";
+import StatsRow from "@/components/home/StatsRow";
 import BlogPreview from "@/components/home/BlogPreview";
-import { Button } from "@/components/ui/button";
-import { GlowingCard } from "@/components/ui/glowing-card";
+import { Eyebrow } from "@/components/home/editorial";
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { DEFAULT_OG_IMAGE, SITE_URL } from "@/lib/seo";
@@ -44,12 +47,42 @@ function excerptFrom(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().slice(0, 140) + "…";
 }
 
+const expertise = [
+  {
+    title: "SEO & Google Business Profile",
+    body: "Technical SEO, local SEO and Google Business Profile optimisation that puts your business on page one and in the Map Pack for searches in your city.",
+    href: "/services/seo-optimization",
+  },
+  {
+    title: "Meta Ads & Google Ads",
+    body: "Facebook, Instagram and Google Ads campaigns for businesses across Pakistan: creative, targeting, bidding and daily optimisation for return on ad spend.",
+    href: "/services/digital-marketing",
+  },
+  {
+    title: "Social Media & Content Marketing",
+    body: "Social presence and content strategies that attract your audience, build authority and turn followers into paying customers.",
+    href: "/services/content-marketing",
+  },
+  {
+    title: "Web Development & Branding",
+    body: "Fast, SEO-ready websites on Next.js and complete brand identity systems: the foundation your business needs to compete online.",
+    href: "/services/web-development",
+  },
+];
+
+const cities = [
+  { city: "Karachi", href: "/digital-marketing-agency-karachi" },
+  { city: "Lahore", href: "/digital-marketing-agency-lahore" },
+  { city: "Islamabad", href: "/digital-marketing-agency-islamabad" },
+];
+
 export default async function Home() {
   let blogPosts: {
     id: string;
     title: string;
     slug: string;
     excerpt: string;
+    image: string | null;
     tags: string[];
     createdAt: Date;
   }[] = [];
@@ -64,6 +97,7 @@ export default async function Home() {
         title: true,
         slug: true,
         excerpt: true,
+        image: true,
         content: true,
         tags: true,
         createdAt: true,
@@ -99,121 +133,61 @@ export default async function Home() {
     <div className="relative w-full">
       <JsonLd data={webPageSchema} />
       <JsonLd data={faqSchema} />
-      <Hero />
+
+      <EditorialHero />
       <Partners />
-      
-      {/* Services Section */}
-      <ServicesGrid />
-
-      {/* About CTA Section */}
-      <section className="py-24 bg-transparent relative z-10">
-        <div className="container mx-auto px-6">
-          <GlowingCard>
-            <div className="p-12 md:p-20 relative overflow-hidden flex flex-col md:flex-row items-center gap-12">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-cyan/10 blur-[100px]" />
-              
-              <div className="flex-1">
-                <h2 className="text-4xl md:text-5xl font-bold mb-8 text-slate-900 dark:text-white">
-                  Building <span className="text-gradient">Intelligent</span> Business Infrastructures
-                </h2>
-                <p className="text-brand-muted text-lg mb-10 leading-relaxed">
-                  We specialize in architecting scalable digital ecosystems that integrate AI, high-performance web tech, and data-driven marketing strategies to drive exponential growth.
-                </p>
-                <Link href="/about">
-                  <Button variant="brand-purple" size="lg" className="rounded-full px-10 py-6">
-                    Meet Our Architects
-                  </Button>
-                </Link>
-              </div>
-              
-              <div className="flex-1 grid grid-cols-2 gap-4">
-                {[
-                  { label: "AI Experts", val: "25+" },
-                  { label: "Successful Projects", val: "150+" },
-                  { label: "Lines of Code", val: "2M+" },
-                  { label: "Satisfied Clients", val: "98%" },
-                ].map((stat, i) => (
-                  <div key={i} className="p-6 bg-white/5 border border-white/10 rounded-2xl text-center">
-                    <div className="text-3xl font-bold text-brand-cyan mb-2">{stat.val}</div>
-                    <div className="text-xs uppercase tracking-widest text-black dark:text-brand-muted">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </GlowingCard>
-        </div>
-      </section>
-
-      <Testimonials items={testimonials} />
-
-      {/* Portfolio Preview */}
+      <ReelSection />
       <PortfolioPreview />
-
-      {/* Blog Preview */}
+      <ServicesGrid />
+      <ProcessSteps />
+      <PricingPreview />
+      <Testimonials items={testimonials} />
+      <StatsRow />
       <BlogPreview posts={blogPosts} />
 
-      {/* Why BITSOL — SEO keyword-rich content section */}
-      <section className="py-24 bg-transparent relative z-10">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900 dark:text-white">
-              Pakistan&apos;s Result-Driven <span className="text-gradient">Digital Marketing Agency</span>
+      {/* Why BITSOL — keyword-rich content that search engines rely on */}
+      <section className="py-24 md:py-32">
+        <div className="wrap">
+          <div className="max-w-[640px]">
+            <Eyebrow className="mb-7">Why BITSOL</Eyebrow>
+            <h2 className="text-[38px] leading-[1.04] sm:text-5xl md:text-[56px]">
+              Pakistan&apos;s result-driven digital marketing agency
             </h2>
-            <p className="text-lg text-black dark:text-brand-muted max-w-3xl mx-auto">
-              BITSOL Marketing is a full-service digital marketing agency headquartered in Pakistan, helping businesses in Karachi, Lahore, Islamabad, and globally rank higher, generate qualified leads, and grow revenue through SEO, paid ads, social media, and professional web solutions.
+            <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-muted-foreground">
+              BITSOL Marketing is a full-service digital marketing agency headquartered in Pakistan, helping
+              businesses in Karachi, Lahore, Islamabad and globally rank higher, generate qualified leads and grow
+              revenue through SEO, paid ads, social media and professional web solutions.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-            {[
-              {
-                title: "SEO & Google Business Profile",
-                body: "We deliver technical SEO, local SEO, and Google Business Profile optimization that ranks your business on page one of Google and in the Google Map Pack for searches in your city.",
-                href: "/services/seo-optimization",
-              },
-              {
-                title: "Meta Ads & Google Ads",
-                body: "We manage Facebook, Instagram, and Google Ads campaigns for businesses across Pakistan — creative, targeting, bidding, and daily optimisation for maximum ROAS.",
-                href: "/services/digital-marketing",
-              },
-              {
-                title: "Social Media & Content Marketing",
-                body: "We build social media presence and content strategies that attract your target audience, build brand authority, and convert followers into paying customers.",
-                href: "/services/content-marketing",
-              },
-              {
-                title: "Web Development & Branding",
-                body: "From fast, SEO-optimised websites on Next.js to complete brand identity systems, we build the digital foundation your business needs to compete and grow online.",
-                href: "/services/web-development",
-              },
-            ].map((item, i) => (
-              <Link key={i} href={item.href}>
-                <GlowingCard>
-                  <div className="p-8 flex items-start gap-4">
-                    <CheckCircle2 className="w-6 h-6 text-brand-cyan shrink-0 mt-1" />
-                    <div>
-                      <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white">{item.title}</h3>
-                      <p className="text-slate-600 dark:text-brand-muted leading-relaxed">{item.body}</p>
-                    </div>
-                  </div>
-                </GlowingCard>
+          <div className="mt-14 grid gap-5 md:grid-cols-2">
+            {expertise.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group flex items-start justify-between gap-6 rounded-[28px] border border-black/[0.06] bg-white p-8 shadow-[0_1px_2px_rgba(20,20,20,0.04)] transition-shadow duration-500 hover:shadow-[0_30px_60px_-30px_rgba(20,20,20,0.3)] md:p-10"
+              >
+                <div>
+                  <h3 className="text-[26px] leading-tight md:text-[30px]">{item.title}</h3>
+                  <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">{item.body}</p>
+                </div>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/[0.08] text-foreground transition-colors duration-300 group-hover:bg-foreground group-hover:text-white">
+                  <ArrowUpRight className="h-4 w-4" />
+                </span>
               </Link>
             ))}
           </div>
 
-          {/* City targeting */}
-          <div className="text-center mb-6">
-            <p className="text-brand-muted text-sm uppercase tracking-widest font-semibold mb-4">Serving Businesses Across Pakistan</p>
-            <div className="flex flex-wrap justify-center gap-4">
-              {[
-                { city: "Karachi", href: "/digital-marketing-agency-karachi" },
-                { city: "Lahore", href: "/digital-marketing-agency-lahore" },
-                { city: "Islamabad", href: "/digital-marketing-agency-islamabad" },
-              ].map(({ city, href }) => (
+          <div className="mt-12 flex flex-col items-start gap-4 md:flex-row md:items-center">
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+              Serving businesses across Pakistan
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {cities.map(({ city, href }) => (
                 <Link
                   key={city}
                   href={href}
-                  className="px-6 py-2 rounded-full border border-brand-cyan/30 text-brand-cyan text-sm font-semibold hover:bg-brand-cyan/10 transition-colors"
+                  className="rounded-full border border-black/[0.06] bg-white px-4 py-2 text-[13px] font-medium text-foreground shadow-[0_1px_2px_rgba(20,20,20,0.04)] transition-colors hover:border-foreground"
                 >
                   Digital Marketing Agency {city}
                 </Link>
@@ -224,49 +198,31 @@ export default async function Home() {
       </section>
 
       {/* Homepage FAQ */}
-      <section className="py-16 bg-transparent relative z-10">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <h2 className="text-3xl md:text-4xl font-bold mb-10 text-slate-900 dark:text-white text-center">
-            Frequently Asked <span className="text-gradient">Questions</span>
-          </h2>
-          <div className="flex flex-col gap-4">
-            {homepageFAQ.map((item, i) => (
-              <GlowingCard key={i}>
-                <details className="group">
-                  <summary className="p-6 flex items-center justify-between cursor-pointer list-none">
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-white pr-4">{item.question}</h3>
-                    <span className="text-brand-cyan shrink-0 text-xl font-light group-open:rotate-45 transition-transform inline-block">+</span>
-                  </summary>
-                  <div className="px-6 pb-6">
-                    <p className="text-slate-600 dark:text-brand-muted leading-relaxed">{item.answer}</p>
-                  </div>
-                </details>
-              </GlowingCard>
-            ))}
+      <section className="pb-8 pt-8 md:pb-16 md:pt-8">
+        <div className="wrap grid gap-12 lg:grid-cols-[minmax(0,560px)_1fr] lg:gap-24">
+          <div>
+            <Eyebrow className="mb-7">FAQ</Eyebrow>
+            <h2 className="text-[38px] leading-[1.04] sm:text-5xl md:text-[56px]">Questions? We are here to help</h2>
           </div>
-        </div>
-      </section>
-
-      {/* Final CTA Section */}
-      <section className="py-24 bg-transparent text-center border-t border-slate-200 dark:border-white/5">
-        <div className="container mx-auto px-6">
-          <h2 className="text-4xl md:text-6xl font-bold mb-10 text-slate-900 dark:text-white">
-            Ready to <span className="text-gradient">Grow Your Business</span>?
-          </h2>
-          <p className="text-black dark:text-brand-muted text-xl max-w-2xl mx-auto mb-12">
-            Get a free consultation and discover which digital marketing services will generate the most growth for your business.
-          </p>
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
-             <Link href="/contact">
-               <Button variant="brand" size="lg" className="rounded-full px-12 py-8 text-xl font-bold">
-                  Get Free Consultation
-               </Button>
-             </Link>
-             <Link href="/pricing">
-               <Button variant="outline" size="lg" className="border-brand-purple text-slate-900 dark:text-brand-white hover:bg-brand-purple/10 rounded-full px-12 py-8 text-xl font-bold">
-                  View Packages
-               </Button>
-             </Link>
+          <div className="divide-y divide-border border-y border-border">
+            {homepageFAQ.map((item, i) => (
+              <details key={i} className="group py-5">
+                <summary className="flex cursor-pointer list-none items-center gap-6 [&::-webkit-details-marker]:hidden">
+                  <span className="w-6 shrink-0 font-heading text-[30px] leading-none text-[#c9c7c1]">{i + 1}</span>
+                  {/* A span, not a heading: the site-wide serif rule on h3 would override font-sans. */}
+                  <span className="flex-1 text-[16px] font-medium leading-snug text-foreground md:text-[17px]">
+                    {item.question}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-white text-muted-foreground transition-transform duration-300 group-open:rotate-180"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </span>
+                </summary>
+                <p className="mt-4 pl-12 pr-16 text-[15px] leading-relaxed text-muted-foreground">{item.answer}</p>
+              </details>
+            ))}
           </div>
         </div>
       </section>

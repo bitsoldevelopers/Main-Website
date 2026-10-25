@@ -39,7 +39,7 @@ const tradingServices = [
 
 export default function TradingClient() {
   return (
-    <div className="pt-32 pb-24 bg-white dark:bg-[#050816]">
+    <div className="pt-32 pb-24 bg-white dark:bg-[#141414]">
       <div className="container mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center mb-32">
           <div>

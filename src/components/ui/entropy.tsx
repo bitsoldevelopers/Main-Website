@@ -39,7 +39,7 @@ export function Entropy({ className = "" }: EntropyProps) {
     handleResize()
     window.addEventListener('resize', handleResize)
 
-    const particleColor = theme === 'dark' ? '#00D9FF' : '#4F46E5'
+    const particleColor = theme === 'dark' ? '#0066ff' : '#0066ff'
     const width = window.innerWidth
     const height = window.innerHeight
 

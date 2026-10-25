@@ -35,7 +35,7 @@ export function FloatingSearch() {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsExpanded(!isExpanded)}
-        className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-colors duration-500 border-4 border-white dark:border-[#050816] ${
+        className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-colors duration-500 border-4 border-white dark:border-[#141414] ${
           isExpanded 
           ? "bg-brand-purple text-white" 
           : "bg-white dark:bg-white/10 backdrop-blur-xl text-slate-900 dark:text-brand-cyan"

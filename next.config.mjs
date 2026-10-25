@@ -34,8 +34,20 @@ const contentSecurityPolicy = [
   // policy and log a warning. The CDN already sends it as an enforced policy.
 ].join("; ");
 
+// Development only. `next dev` names chunks by path, not by content, so a
+// browser that once stored a dev chunk under the year-long `immutable`
+// header (sent before the headers below were made production-only) keeps
+// executing that stale copy: "module factory is not available", hydration
+// mismatches on edited class names. A fresh deployment id on every dev-server
+// start appends `?dpl=<id>` to every asset URL, so those cached entries are
+// never requested again. Production builds set their own id (none here), and
+// nothing about the live site changes.
+const devCacheBuster =
+  process.env.NODE_ENV === "development" ? { deploymentId: `dev-${Date.now().toString(36)}` } : {};
+
 /** @type {import("next").NextConfig} */
 const nextConfig = {
+  ...devCacheBuster,
   output: "standalone",
   images: {
     remotePatterns: [
@@ -68,27 +80,41 @@ const nextConfig = {
 
   // Cache-Control, security, and SEO headers
   async headers() {
+    // The year-long immutable cache is right for production, where Next's
+    // static assets carry content hashes. Under `next dev` chunk names are
+    // path-based and their content changes with every edit, so the same header
+    // made browsers keep stale chunks across reloads: "module factory is not
+    // available" errors and hydration mismatches after any class change. In
+    // development these rules are left out and Next's own no-cache defaults
+    // apply.
+    const longLived =
+      process.env.NODE_ENV === "production"
+        ? [
+            // Static image assets — 1 year cache
+            {
+              source: "/:path*\\.(jpg|jpeg|png|gif|webp|svg|ico|avif)",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "public, max-age=31536000, immutable",
+                },
+              ],
+            },
+            // Static font/CSS/JS — 1 year cache
+            {
+              source: "/_next/static/:path*",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "public, max-age=31536000, immutable",
+                },
+              ],
+            },
+          ]
+        : [];
+
     return [
-      // Static image assets — 1 year cache
-      {
-        source: "/:path*\\.(jpg|jpeg|png|gif|webp|svg|ico|avif)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      // Static font/CSS/JS — 1 year cache
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
+      ...longLived,
       // All pages — security + SEO headers
       {
         source: "/:path*",

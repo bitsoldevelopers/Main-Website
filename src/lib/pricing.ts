@@ -19,7 +19,7 @@ export const plans: Plan[] = [
     price: "$500",
     period: "/month",
     desc: "For startups and small businesses ready to go digital with AI.",
-    color: "#06b6d4",
+    color: "#0066ff",
     bg: "rgba(6,182,212,0.1)",
     popular: false,
     features: [
@@ -38,7 +38,7 @@ export const plans: Plan[] = [
     price: "$1,500",
     period: "/month",
     desc: "Full-stack AI marketing for businesses scaling fast.",
-    color: "#a855f7",
+    color: "#0066ff",
     bg: "rgba(168,85,247,0.1)",
     popular: true,
     features: [

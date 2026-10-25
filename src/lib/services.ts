@@ -41,8 +41,8 @@ export const services: Service[] = [
     metaDescription:
       "Custom AI automation for businesses in Pakistan: LLM agents, workflow automation, chatbots and predictive analytics. Book a free consultation.",
     icon: Brain,
-    iconBg: "#00D9FF1A",
-    iconColor: "#00D9FF",
+    iconBg: "#0066ff1A",
+    iconColor: "#0066ff",
     features: [
       "Custom GPT & LLM Training",
       "Workflow Automation Agents",
@@ -95,8 +95,8 @@ export const services: Service[] = [
     metaDescription:
       "Digital marketing services in Pakistan: Meta Ads, Google Ads, social media, CRO and email marketing for businesses in Karachi, Lahore and Islamabad.",
     icon: Rocket,
-    iconBg: "#7C3AED1A",
-    iconColor: "#7C3AED",
+    iconBg: "#1414141A",
+    iconColor: "#141414",
     features: [
       "Algorithmic Media Buying",
       "Conversion Rate Optimization",
@@ -149,8 +149,8 @@ export const services: Service[] = [
     metaDescription:
       "Web development company in Pakistan building fast, SEO-ready Next.js, React, e-commerce and SaaS websites for Karachi, Lahore and Islamabad.",
     icon: Globe,
-    iconBg: "#00D9FF1A",
-    iconColor: "#00D9FF",
+    iconBg: "#0066ff1A",
+    iconColor: "#0066ff",
     features: [
       "Next.js & React Architectures",
       "Interactive 3D Web Experiences",
@@ -203,8 +203,8 @@ export const services: Service[] = [
     metaDescription:
       "Mobile app development in Pakistan: native iOS, Android and Flutter apps for e-commerce, fintech, healthcare and on-demand businesses. Get a quote.",
     icon: Smartphone,
-    iconBg: "#7C3AED1A",
-    iconColor: "#7C3AED",
+    iconBg: "#1414141A",
+    iconColor: "#141414",
     features: [
       "Native iOS & Android Development",
       "Cross-Platform Flutter Solutions",
@@ -257,8 +257,8 @@ export const services: Service[] = [
     metaDescription:
       "SEO agency in Pakistan offering technical SEO, local SEO, Google Business Profile optimization, content strategy and link building. Free SEO audit.",
     icon: Search,
-    iconBg: "#00D9FF1A",
-    iconColor: "#00D9FF",
+    iconBg: "#0066ff1A",
+    iconColor: "#0066ff",
     features: [
       "Google Business Profile Optimization",
       "Technical SEO & Core Web Vitals",
@@ -311,8 +311,8 @@ export const services: Service[] = [
     metaDescription:
       "Custom algorithmic trading software for PSX, PMEX and crypto markets: trading bots, backtesting and AI risk management. Free consultation.",
     icon: TrendingUp,
-    iconBg: "#7C3AED1A",
-    iconColor: "#7C3AED",
+    iconBg: "#1414141A",
+    iconColor: "#141414",
     features: [
       "Algorithmic Execution Engines",
       "Market Making Algorithms",
@@ -365,8 +365,8 @@ export const services: Service[] = [
     metaDescription:
       "Content marketing for businesses in Pakistan: SEO blog content, email sequences, social media copy and lead magnets that generate qualified leads.",
     icon: PenTool,
-    iconBg: "#00D9FF1A",
-    iconColor: "#00D9FF",
+    iconBg: "#0066ff1A",
+    iconColor: "#0066ff",
     features: [
       "SEO-Optimised Blog & Article Writing",
       "Email Marketing Sequences",
@@ -419,8 +419,8 @@ export const services: Service[] = [
     metaDescription:
       "Branding agency in Pakistan for logo design, brand identity, visual systems and brand guidelines. Serving Karachi, Lahore and Islamabad.",
     icon: Palette,
-    iconBg: "#7C3AED1A",
-    iconColor: "#7C3AED",
+    iconBg: "#1414141A",
+    iconColor: "#141414",
     features: [
       "Brand Strategy & Positioning",
       "Logo & Visual Identity Design",

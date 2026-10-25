@@ -35,7 +35,7 @@ export function SplineSceneBasic() {
     <div className="w-full h-full relative overflow-hidden bg-transparent">
       <Spotlight
         className="-top-40 left-0 md:left-60 md:-top-20"
-        fill={mounted && theme === "light" ? "#94A3B8" : "white"}
+        fill={mounted && theme === "light" ? "#656565" : "white"}
       />
       
       <div className="flex h-full flex-col md:flex-row container mx-auto px-6 relative z-10">

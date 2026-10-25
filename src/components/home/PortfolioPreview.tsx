@@ -1,83 +1,93 @@
-"use client";
-
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { projects } from "@/lib/portfolio";
 import Link from "next/link";
-import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Eyebrow, Tag } from "@/components/home/editorial";
+import ParallaxImage from "@/components/home/ParallaxImage";
+import { projects } from "@/lib/portfolio";
+import { cn } from "@/lib/utils";
+
+type Project = (typeof projects)[number];
+
+/**
+ * "Featured work": the heading block top-left, then six portrait cards in
+ * two columns that step down the page, each a white frame around the image
+ * with the name, a line and the tags beneath. The right column starts level
+ * with the heading, the left one below it, and the widths and offsets vary
+ * from card to card as they do in the reference.
+ */
+
+const LAYOUT: Record<number, string> = {
+  0: "lg:mt-0",
+  1: "lg:mt-28",
+  2: "lg:mt-36 lg:w-[82%]",
+  3: "lg:mt-32 lg:ml-auto lg:w-[90%]",
+  4: "lg:mt-40 lg:ml-auto",
+  5: "lg:mt-28 lg:w-[80%]",
+};
+
+function WorkCard({ project, index }: { project: Project; index: number }) {
+  const tags = [project.category, ...project.tech.slice(0, 2)];
+  return (
+    <article className={cn("w-full", LAYOUT[index])}>
+      <Link href={`/portfolio/${project.slug}`} className="group block">
+        <div className="rounded-[28px] border border-black/[0.06] bg-white p-1.5 shadow-[0_1px_2px_rgba(20,20,20,0.04)] transition-shadow duration-500 group-hover:shadow-[0_30px_60px_-30px_rgba(20,20,20,0.35)]">
+          <ParallaxImage
+            src={project.image}
+            alt={project.title}
+            sizes="(min-width: 1024px) 40vw, 100vw"
+            // Unsplash URLs already ask its CDN for a sized, compressed
+            // image; the local screenshots go through the optimizer.
+            unoptimized={project.image.startsWith("http")}
+            className="aspect-[4/5] rounded-[22px] bg-secondary"
+          />
+        </div>
+        <div className="px-2.5 pt-7">
+          <h3 className="text-[30px] leading-tight md:text-[34px]">{project.title}</h3>
+          <p className="mt-2.5 max-w-md text-[16px] leading-relaxed text-muted-foreground">{project.desc}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <Tag key={tag}>{tag}</Tag>
+            ))}
+          </div>
+        </div>
+      </Link>
+    </article>
+  );
+}
 
 export default function PortfolioPreview() {
-  const previewProjects = projects.slice(0, 6);
+  const preview = projects.slice(0, 6);
+  const right = preview.filter((_, i) => i % 2 === 0); // 0, 2, 4
+  const left = preview.filter((_, i) => i % 2 === 1); // 1, 3, 5
 
   return (
-    <section className="py-24 bg-transparent relative z-10">
-      <div className="container mx-auto px-6">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
-          <div className="max-w-2xl">
-            <motion.h2 
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="text-4xl md:text-6xl font-bold mb-6 text-slate-900 dark:text-white"
-            >
-              Selected <span className="text-gradient">Innovations</span>
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-black dark:text-brand-muted text-lg"
-            >
-              Exploring the boundaries of AI, high-performance web ecosystems, and institutional trading technology.
-            </motion.p>
+    <section className="py-24 md:py-32">
+      <div className="wrap">
+        <div className="grid gap-16 lg:grid-cols-2 lg:gap-x-20">
+          <div className="flex flex-col gap-16 lg:gap-24">
+            <div className="max-w-[560px]">
+              <Eyebrow className="mb-7">Featured work</Eyebrow>
+              <h2 className="text-[38px] leading-[1.04] sm:text-5xl md:text-[56px]">
+                Selected projects built with ambitious businesses and bold teams
+              </h2>
+              <Link href="/contact" className="mt-9 inline-block">
+                <Button>Book an intro call</Button>
+              </Link>
+            </div>
+            {left.map((project) => (
+              <WorkCard key={project.slug} project={project} index={preview.indexOf(project)} />
+            ))}
           </div>
-          <Link href="/portfolio">
-            <Button size="lg" variant="outline" className="border-brand-cyan text-brand-cyan hover:bg-brand-cyan/10 rounded-full px-8">
-              View All Projects
-            </Button>
-          </Link>
+          <div className="flex flex-col gap-16 lg:gap-24 lg:pt-8">
+            {right.map((project) => (
+              <WorkCard key={project.slug} project={project} index={preview.indexOf(project)} />
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {previewProjects.map((project, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="group relative h-[450px] rounded-3xl overflow-hidden border border-white/10"
-            >
-              <Image
-                src={project.image}
-                alt={project.title}
-                fill
-                sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-                // Unsplash URLs already ask its CDN for a sized, compressed
-                // image. The local screenshots are 1024px PNGs of up to 1.2MB,
-                // so those go through the optimizer.
-                unoptimized={project.image.startsWith("http")}
-                className="object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
-              
-              <div className="absolute inset-0 p-10 flex flex-col justify-end">
-                <div className="text-brand-cyan font-bold text-sm uppercase tracking-widest mb-4 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
-                  {project.category}
-                </div>
-                <h3 className="text-3xl font-bold text-white mb-6 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
-                  {project.title}
-                </h3>
-                
-                <Link href={`/portfolio/${project.slug}`}>
-                  <div className="flex items-center gap-2 text-white font-bold opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
-                    View Case Study <div className="w-8 h-px bg-brand-cyan" />
-                  </div>
-                </Link>
-              </div>
-            </motion.div>
-          ))}
+        <div className="mt-16 flex justify-center lg:hidden">
+          <Link href="/portfolio">
+            <Button variant="outline">View all projects</Button>
+          </Link>
         </div>
       </div>
     </section>

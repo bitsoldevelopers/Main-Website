@@ -1,33 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useTheme } from "next-themes";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MacOSDock from "@/components/ui/mac-os-dock";
-import {
-  Search,
-  Moon,
-  Sun,
-  MessageSquare,
-  Home,
-  X,
-  LayoutGrid
-} from "lucide-react";
+import { Search, MessageSquare, Home, X, LayoutGrid } from "lucide-react";
 import { DIcons } from "@/components/ui/dicons";
 import SearchComponent from "@/components/ui/animated-glowing-search-bar";
 import { useRouter } from "next/navigation";
 
 export function FloatingDock() {
-  const { theme, setTheme } = useTheme();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [hidden, setHidden] = useState(false);
   const router = useRouter();
 
-  // Prevent hydration mismatch by only rendering after mount
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Render nothing on the server and during hydration; the dock is client-only.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   // The dock is fixed to the bottom of the viewport, where on phones it sat on
   // top of body text and buttons. Slide it out of the way while the visitor
@@ -53,36 +44,32 @@ export function FloatingDock() {
 
   if (!mounted) return null;
 
+  // The theme switch that used to sit here is gone: the site is light only.
   const dockApps = [
     {
       id: "home",
       name: "Home",
-      icon: <Home className="w-6 h-6 text-brand-cyan" />
+      icon: <Home className="w-6 h-6 text-foreground" strokeWidth={1.75} />
     },
     {
       id: "services",
       name: "Services",
-      icon: <LayoutGrid className="w-6 h-6 text-brand-purple" />
+      icon: <LayoutGrid className="w-6 h-6 text-foreground" strokeWidth={1.75} />
     },
     {
       id: "search",
       name: "Search",
-      icon: <Search className="w-6 h-6 text-brand-cyan" />
-    },
-    {
-      id: "theme",
-      name: "Toggle Theme",
-      icon: theme === "dark" ? <Sun className="w-6 h-6 text-yellow-400" /> : <Moon className="w-6 h-6 text-slate-700" />
+      icon: <Search className="w-6 h-6 text-foreground" strokeWidth={1.75} />
     },
     {
       id: "whatsapp",
       name: "WhatsApp",
-      icon: <DIcons.WhatsApp className="w-6 h-6 text-green-500" />
+      icon: <DIcons.WhatsApp className="w-6 h-6 text-green-600" />
     },
     {
       id: "contact",
       name: "Contact Us",
-      icon: <MessageSquare className="w-6 h-6 text-brand-purple" />
+      icon: <MessageSquare className="w-6 h-6 text-foreground" strokeWidth={1.75} />
     }
   ];
 
@@ -96,9 +83,6 @@ export function FloatingDock() {
         break;
       case "search":
         setIsSearchOpen(true);
-        break;
-      case "theme":
-        setTheme(theme === "dark" ? "light" : "dark");
         break;
       case "whatsapp":
         window.open("https://wa.me/923120141581", "_blank");
@@ -130,7 +114,7 @@ export function FloatingDock() {
             >
               <div className="relative">
                 <SearchComponent />
-                <button 
+                <button
                   onClick={() => setIsSearchOpen(false)}
                   className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white transition-colors"
                 >
@@ -147,8 +131,8 @@ export function FloatingDock() {
           hidden ? "translate-y-[180%]" : ""
         }`}
       >
-        <MacOSDock 
-          apps={dockApps} 
+        <MacOSDock
+          apps={dockApps}
           onAppClick={handleAppClick}
           openApps={isSearchOpen ? ["search"] : []}
         />

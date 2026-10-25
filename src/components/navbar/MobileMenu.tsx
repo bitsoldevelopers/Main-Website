@@ -85,14 +85,14 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
               <Link href="/" className="flex items-center gap-2" onClick={onClose}>
                 <Logo className="h-10 w-10" />
                 <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                  BITSOL<span className="text-[#06B6D4]">.</span>
+                  BITSOL<span className="text-[#0066ff]">.</span>
                 </span>
               </Link>
               <button
                 type="button"
                 aria-label="Close navigation menu"
                 onClick={onClose}
-                className="rounded-full border border-slate-200 p-2.5 text-slate-700 transition-colors hover:border-[#185FA5] hover:text-[#185FA5] dark:border-white/15 dark:text-white"
+                className="rounded-full border border-slate-200 p-2.5 text-slate-700 transition-colors hover:border-[#0066ff] hover:text-[#0066ff] dark:border-white/15 dark:text-white"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -131,7 +131,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                               <div className="flex flex-col gap-5 pb-5 pl-1">
                                 {item.columns.map((col) => (
                                   <div key={col.heading}>
-                                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#185FA5] dark:text-brand-cyan">
+                                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#0066ff] dark:text-brand-cyan">
                                       {col.heading}
                                     </p>
                                     <div className="flex flex-col gap-0.5">
@@ -140,7 +140,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                                           key={sub.title}
                                           href={sub.href}
                                           onClick={onClose}
-                                          className="flex items-center gap-2 rounded-lg py-2 text-sm text-slate-600 hover:text-[#185FA5] dark:text-brand-muted dark:hover:text-white"
+                                          className="flex items-center gap-2 rounded-lg py-2 text-sm text-slate-600 hover:text-[#0066ff] dark:text-brand-muted dark:hover:text-white"
                                         >
                                           <sub.icon className="h-4 w-4 shrink-0 opacity-70" />
                                           {sub.title}
@@ -158,7 +158,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                       <Link
                         href={item.href}
                         onClick={onClose}
-                        className="block py-4 text-lg font-semibold text-slate-900 hover:text-[#185FA5] dark:text-white dark:hover:text-brand-cyan"
+                        className="block py-4 text-lg font-semibold text-slate-900 hover:text-[#0066ff] dark:text-white dark:hover:text-brand-cyan"
                       >
                         {item.name}
                       </Link>
@@ -173,7 +173,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                 <a
                   href={`tel:${contactInfo.phone}`}
                   aria-label="Call us"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:border-[#185FA5] hover:text-[#185FA5] dark:border-white/15 dark:text-white"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:border-[#0066ff] hover:text-[#0066ff] dark:border-white/15 dark:text-white"
                 >
                   <Phone className="h-4.5 w-4.5" strokeWidth={1.75} />
                 </a>
@@ -189,7 +189,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                 <a
                   href={`mailto:${contactInfo.email}`}
                   aria-label="Email us"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:border-[#185FA5] hover:text-[#185FA5] dark:border-white/15 dark:text-white"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:border-[#0066ff] hover:text-[#0066ff] dark:border-white/15 dark:text-white"
                 >
                   <Mail className="h-4.5 w-4.5" strokeWidth={1.75} />
                 </a>
@@ -198,7 +198,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="LinkedIn"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:border-[#185FA5] hover:text-[#185FA5] dark:border-white/15 dark:text-white"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:border-[#0066ff] hover:text-[#0066ff] dark:border-white/15 dark:text-white"
                 >
                   <DIcons.LinkedIn className="h-4.5 w-4.5" />
                 </a>
@@ -207,7 +207,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Instagram"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:border-[#185FA5] hover:text-[#185FA5] dark:border-white/15 dark:text-white"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition-colors hover:border-[#0066ff] hover:text-[#0066ff] dark:border-white/15 dark:text-white"
                 >
                   <DIcons.Instagram className="h-4.5 w-4.5" />
                 </a>

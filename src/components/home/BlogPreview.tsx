@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { GlowingCard } from "@/components/ui/glowing-card";
 import Link from "next/link";
-import { ArrowRight, Calendar, Tag } from "lucide-react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Eyebrow, Tag } from "@/components/home/editorial";
 
 type Post = {
   id: string;
   title: string;
   slug: string;
   excerpt: string | null;
+  image?: string | null;
   /** Only present on posts from the client-side /api/blog fallback. */
   content?: string;
   tags: string[];
@@ -24,7 +24,7 @@ function formatDate(date: Date | string): string {
   // as a hydration mismatch and then re-rendered the whole tree.
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
-    month: "short",
+    month: "long",
     day: "numeric",
     timeZone: "Asia/Karachi",
   }).format(new Date(date));
@@ -32,6 +32,21 @@ function formatDate(date: Date | string): string {
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
+
+// Stand-in artwork for posts without a cover image: a soft duotone chosen
+// from the slug, so a post keeps the same one across renders.
+const WASHES = [
+  "linear-gradient(135deg,#e9d7ff 0%,#f7c9e5 50%,#ffe3c7 100%)",
+  "linear-gradient(135deg,#dfe8ff 0%,#eef1ec 55%,#f3e5d8 100%)",
+  "linear-gradient(135deg,#ffd9c2 0%,#f5b8c8 50%,#d8c6ff 100%)",
+  "linear-gradient(135deg,#d9f2ea 0%,#e8f0d2 55%,#fff0c9 100%)",
+];
+
+function washFor(slug: string): string {
+  let h = 0;
+  for (const ch of slug) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return WASHES[h % WASHES.length];
 }
 
 export default function BlogPreview({ posts: initialPosts }: { posts: Post[] }) {
@@ -51,102 +66,74 @@ export default function BlogPreview({ posts: initialPosts }: { posts: Post[] }) 
   if (posts.length === 0) return null;
 
   return (
-    <section className="py-24 bg-transparent relative z-10">
-      <div className="container mx-auto px-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
-          <div className="max-w-2xl">
-            <motion.h2
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="text-4xl md:text-6xl font-bold mb-6 text-slate-900 dark:text-white"
-            >
-              AI Marketing <span className="text-gradient">Insights</span>
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-black dark:text-brand-muted text-lg"
-            >
-              Expert guides on AI-powered SEO, automation, and digital growth — straight from our team.
-            </motion.p>
+    <section className="py-24 md:py-32">
+      <div className="wrap">
+        <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-[560px]">
+            <Eyebrow className="mb-7">Insights</Eyebrow>
+            <h2 className="text-[38px] leading-[1.04] sm:text-5xl md:text-[56px]">Ideas, insights &amp; perspectives</h2>
           </div>
-          <Link href="/blog">
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-brand-cyan text-brand-cyan hover:bg-brand-cyan/10 rounded-full px-8"
-            >
-              View All Articles
+          <Link href="/blog" className="shrink-0 md:pb-2">
+            <Button variant="outline" className="border-black/[0.06] bg-white shadow-[0_1px_2px_rgba(20,20,20,0.04)]">
+              View all articles
             </Button>
           </Link>
         </div>
 
-        {/* Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts.map((post, i) => {
-            const firstTag = post.tags?.[0] ?? "AI Marketing";
-            const excerpt =
-              post.excerpt ||
-              (post.content ? stripHtml(post.content).slice(0, 140) + "…" : "");
+        <div className="mt-16 grid gap-6 md:grid-cols-3">
+          {posts.slice(0, 3).map((post) => {
+            const firstTag = post.tags?.[0] ?? "Marketing";
+            const excerpt = post.excerpt || (post.content ? stripHtml(post.content).slice(0, 140) + "…" : "");
+            const title = post.title.length > 72 ? post.title.slice(0, 72) + "…" : post.title;
 
             return (
-              <motion.div
+              <article
                 key={post.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
+                className="group flex flex-col rounded-[28px] border border-black/[0.06] bg-white p-2 shadow-[0_1px_2px_rgba(20,20,20,0.04)] transition-shadow duration-500 hover:shadow-[0_30px_60px_-30px_rgba(20,20,20,0.3)]"
               >
-                <GlowingCard className="h-full">
-                  <div className="flex flex-col h-full group">
-                    {/* Image area */}
-                    <div className="relative aspect-video overflow-hidden rounded-t-xl bg-gradient-to-br from-brand-dark to-brand-slate">
-                      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
-                        <span className="text-[4rem] font-black text-brand-cyan/10 uppercase tracking-tighter text-center px-4 leading-none">
-                          {firstTag}
-                        </span>
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/80 via-transparent to-transparent" />
-                      <div className="absolute bottom-4 left-4">
-                        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-brand-cyan bg-brand-dark/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-brand-cyan/30">
-                          <Tag className="w-2.5 h-2.5" />
-                          {firstTag}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-8 flex flex-col flex-grow">
-                      <div className="flex items-center gap-2 text-xs text-brand-muted mb-4">
-                        <Calendar className="w-3 h-3" />
-                        {formatDate(post.createdAt)}
-                      </div>
-
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-brand-cyan transition-colors leading-snug mb-4">
-                        {post.title.length > 72
-                          ? post.title.slice(0, 72) + "…"
-                          : post.title}
-                      </h3>
-
-                      <p className="text-sm text-slate-600 dark:text-brand-muted leading-relaxed flex-grow mb-6">
-                        {excerpt}
-                      </p>
-
-                      <Link
-                        href={`/blog/${post.slug}`}
-                        className="inline-flex items-center gap-2 text-sm font-bold text-brand-cyan group/link mt-auto"
-                      >
-                        Read Article
-                        <ArrowRight className="w-4 h-4 transition-transform group-hover/link:translate-x-1" />
-                      </Link>
-                    </div>
+                <div className="flex flex-1 flex-col px-5 pb-7 pt-6">
+                  <time
+                    dateTime={new Date(post.createdAt).toISOString()}
+                    className="font-mono text-[11px] uppercase tracking-[0.08em] text-[#a4a4a4]"
+                  >
+                    {formatDate(post.createdAt)}
+                  </time>
+                  <h3 className="mt-5 text-[28px] leading-[1.1] md:text-[30px]">
+                    <Link href={`/blog/${post.slug}`} className="transition-colors group-hover:text-foreground/80">
+                      {title}
+                    </Link>
+                  </h3>
+                  <p className="mt-5 flex-1 text-[14px] leading-relaxed text-muted-foreground">{excerpt}</p>
+                  <div className="mt-6">
+                    <Tag tone="muted">{firstTag}</Tag>
                   </div>
-                </GlowingCard>
-              </motion.div>
+                </div>
+
+                <Link
+                  href={`/blog/${post.slug}`}
+                  aria-label={post.title}
+                  className="relative block aspect-[3/2] overflow-hidden rounded-[20px] bg-secondary"
+                >
+                  {post.image ? (
+                    <Image
+                      src={post.image}
+                      alt=""
+                      fill
+                      sizes="(min-width: 768px) 30vw, 100vw"
+                      unoptimized={post.image.startsWith("http")}
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-0 flex items-end p-5 font-heading text-[88px] leading-none text-white/70"
+                      style={{ background: washFor(post.slug) }}
+                    >
+                      {firstTag.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </Link>
+              </article>
             );
           })}
         </div>
