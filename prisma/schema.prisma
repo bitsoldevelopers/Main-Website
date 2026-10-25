@@ -122,6 +122,10 @@ model Lead {
   followUps  FollowUp[]
   tasks      Task[]
   importRows LeadImportRow[]
+  // Chatbot: what the assistant learned, and the threads it came from.
+  chatProfile   ChatLeadProfile?
+  conversations ChatConversation[]
+  chatRequests  ChatRequest[]
 
   @@index([status])
   @@index([utmCampaign])
@@ -793,4 +797,226 @@ model Task {
   @@index([status, dueAt])
   @@index([leadId])
   @@index([assignedToId])
+}
+
+// ─── Chatbot: conversations, knowledge base, configuration ──────────────────
+//
+// The AI assistant on the website (and, when connected, on WhatsApp). Leads it
+// captures are ordinary `Lead` rows (source chatbot / whatsapp) with a
+// `ChatLeadProfile` holding what the assistant learned and how it scored them.
+
+/// One section of Chatbot Studio (`bot.<section>`), saved over the built-in
+/// default. A section nobody has saved keeps following the defaults in
+/// src/data/marketing/bot.
+model ChatbotSetting {
+  key         String   @id
+  value       Json
+  description String?
+  updatedBy   String?
+  updatedAt   DateTime @default(now()) @updatedAt
+}
+
+model ChatConversation {
+  id            String    @id @default(cuid())
+  reference     String    @unique
+  // WEB | WHATSAPP
+  channel       String    @default("WEB")
+  title         String?
+  // EN | UR | UR_ROMAN | PA
+  language      String    @default("EN")
+  // WhatsApp sender in display form (+923001234567) and profile name.
+  contactPhone  String?
+  contactName   String?
+  // What the customer told the assistant and the assistant's own memory.
+  // Shape: CaptureState in src/lib/capture.ts.
+  capture       Json?
+  handedOff     Boolean   @default(false)
+  handedOffAt   DateTime?
+  handoverTeam  String?
+  // Set from the panel: the assistant stays silent while a person replies.
+  botPaused     Boolean   @default(false)
+  // Attribution from the first message: ad referral, ref: code, or direct.
+  trafficSource String?
+  campaign      String?
+  adId          String?
+  referral      Json?
+  rating        Int?
+  leadId        String?
+  lead          Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  messages ChatMessage[]
+  events   ChatEvent[]
+  requests ChatRequest[]
+
+  @@index([channel, contactPhone, updatedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([handedOff])
+  @@index([leadId])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // USER | ASSISTANT
+  role           String
+  content        String           @db.Text
+  language       String?
+  latencyMs      Int?
+  // WhatsApp message id (wamid.…). Unique, which makes webhook redelivery idempotent.
+  externalId     String?          @unique
+  // Admin who wrote an ASSISTANT message from the panel; null for the AI.
+  authorId       String?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+/// One thing the assistant did or observed; the analytics count these.
+model ChatEvent {
+  id             String            @id @default(cuid())
+  type           String
+  // WEB | WHATSAPP
+  channel        String            @default("WEB")
+  conversationId String?
+  conversation   ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  leadId         String?
+  intent         String?
+  team           String?
+  value          String?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+
+  @@index([type, createdAt])
+  @@index([channel, createdAt])
+  @@index([conversationId])
+}
+
+/// The knowledge base the assistant answers from. Published entries only.
+model ChatKnowledge {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  // FAQ | ARTICLE | SERVICE | POLICY | DOCUMENT
+  kind      String   @default("FAQ")
+  category  String
+  question  String   @db.Text
+  answer    String   @db.Text
+  // string[]
+  keywords  Json     @default("[]")
+  language  String   @default("EN")
+  // DRAFT | PUBLISHED | ARCHIVED
+  state     String   @default("PUBLISHED")
+  version   Int      @default(1)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([category])
+  @@index([state])
+}
+
+/// What the assistant learned about a lead and how it scored it.
+model ChatLeadProfile {
+  leadId              String    @id
+  lead                Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  reference           String    @unique
+  // CHATBOT | WHATSAPP
+  source              String
+  conversationId      String?
+  // 0–100, recomputed on every turn from the weights in Chatbot Studio.
+  score               Int       @default(0)
+  // COLD | WARM | HOT | HIGH_PRIORITY
+  temperature         String    @default("COLD")
+  // string[] — which scoring rules fired.
+  scoreReasons        Json      @default("[]")
+  intent              String?
+  serviceSlug         String?
+  subService          String?
+  businessType        String?
+  website             String?   @db.VarChar(500)
+  budget              String?
+  timeline            String?
+  businessGoal        String?   @db.Text
+  challenge           String?   @db.Text
+  companySize         String?
+  requirements        String?   @db.Text
+  trafficSource       String?
+  campaign            String?
+  adId                String?
+  assignedTeam        String?
+  conversationSummary String?   @db.Text
+  nextAction          String?   @db.Text
+  lastMessage         String?   @db.Text
+  lastMessageAt       DateTime?
+  // UNKNOWN | OPTED_IN | OPTED_OUT
+  optInStatus         String    @default("UNKNOWN")
+  followUpCount       Int       @default(0)
+  lastFollowUpAt      DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now()) @updatedAt
+
+  @@index([source, createdAt])
+  @@index([temperature])
+  @@index([conversationId])
+}
+
+/// Support tickets and consultation requests raised in conversation.
+model ChatRequest {
+  id             String            @id @default(cuid())
+  reference      String            @unique
+  // TICKET | MEETING
+  kind           String
+  // TICKET: OPEN | IN_PROGRESS | WAITING_CUSTOMER | RESOLVED | CLOSED
+  // MEETING: REQUESTED | CONFIRMED | RESCHEDULED | COMPLETED | CANCELLED | NO_SHOW
+  status         String
+  priority       String            @default("NORMAL")
+  // TICKET: TECHNICAL | BILLING | SALES | COMPLAINT | GENERAL
+  category       String?
+  team           String?
+  subject        String            @db.VarChar(300)
+  description    String?           @db.Text
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+  preferredDate  DateTime?
+  preferredTime  String?
+  // OFFICE | ZOOM | GOOGLE_MEET | WHATSAPP
+  mode           String?
+  meetingLink    String?           @db.VarChar(500)
+  notes          String?           @db.Text
+  resolution     String?           @db.Text
+  resolvedAt     DateTime?
+  leadId         String?
+  lead           Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  conversationId String?
+  conversation   ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
+
+  @@index([kind, status])
+  @@index([createdAt])
+  @@index([leadId])
+  @@index([conversationId])
+}
+
+/// A person who has messaged the WhatsApp business number.
+model WhatsappContact {
+  id             String    @id @default(cuid())
+  // Meta's wa_id: E.164 digits with no leading +.
+  waId           String    @unique
+  phone          String
+  profileName    String?
+  lastInboundAt  DateTime?
+  lastOutboundAt DateTime?
+  // True after the contact sends STOP. Blocks follow-ups, not replies.
+  optedOut       Boolean   @default(false)
+  // Set by staff to make the assistant ignore a number entirely.
+  isBlocked      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@index([lastInboundAt])
 }

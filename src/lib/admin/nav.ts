@@ -12,6 +12,13 @@ import {
   Globe,
   ArrowRightLeft,
   Bot,
+  BookOpen,
+  BarChart3,
+  FlaskConical,
+  LifeBuoy,
+  MessagesSquare,
+  Plug,
+  Sparkles,
   Building2,
   Workflow,
   Share2,
@@ -28,7 +35,7 @@ export interface AdminNavItem {
   icon: LucideIcon;
   description: string;
   /** Which live counter to show next to the label. */
-  badge?: "newLeads" | "drafts";
+  badge?: "newLeads" | "drafts" | "handoffs";
   /** Hidden from roles missing this permission; pages enforce it themselves too. */
   permission?: Permission;
 }
@@ -97,6 +104,61 @@ export const adminNav: AdminNavGroup[] = [
     ],
   },
   {
+    heading: "Chatbot",
+    items: [
+      {
+        label: "Conversations",
+        href: "/admin/chatbot/conversations",
+        icon: MessagesSquare,
+        description: "Every chat the assistant handled on the website and WhatsApp.",
+        badge: "handoffs",
+        permission: "chatbot.view",
+      },
+      {
+        label: "Tickets & Meetings",
+        href: "/admin/chatbot/requests",
+        icon: LifeBuoy,
+        description: "Support tickets and consultation requests raised in chat.",
+        permission: "chatbot.view",
+      },
+      {
+        label: "Knowledge Base",
+        href: "/admin/chatbot/knowledge",
+        icon: BookOpen,
+        description: "What the assistant is allowed to say about BITSOL Marketing.",
+        permission: "chatbot.view",
+      },
+      {
+        label: "Chatbot Studio",
+        href: "/admin/chatbot/studio",
+        icon: Bot,
+        description: "Menus, messages, pricing, teams, scoring and automation rules.",
+        permission: "chatbot.manage",
+      },
+      {
+        label: "Simulator",
+        href: "/admin/chatbot/simulator",
+        icon: FlaskConical,
+        description: "Talk to the assistant with the live configuration. Nothing is saved.",
+        permission: "chatbot.manage",
+      },
+      {
+        label: "Chatbot Analytics",
+        href: "/admin/chatbot/analytics",
+        icon: BarChart3,
+        description: "Conversations, leads, handovers, intents and languages.",
+        permission: "chatbot.view",
+      },
+      {
+        label: "Chatbot Setup",
+        href: "/admin/chatbot/setup",
+        icon: Plug,
+        description: "AI provider, WhatsApp connection, webhook URL and follow-up cron.",
+        permission: "chatbot.manage",
+      },
+    ],
+  },
+  {
     heading: "Content",
     items: [
       { label: "Blog", href: "/admin/blog", icon: FileText, description: "Articles served at /blog.", badge: "drafts", permission: "content.write" },
@@ -152,7 +214,7 @@ export const adminNav: AdminNavGroup[] = [
       {
         label: "Content Pipeline",
         href: "/admin/automation/content",
-        icon: Bot,
+        icon: Sparkles,
         description: "Daily content pipeline, deploys and integrations.",
         permission: "automation.view",
       },

@@ -188,11 +188,11 @@ export default async function ContentPipelinePage() {
                 <MessageSquare className="h-4 w-4 text-cyan-700" /> Website chatbot
               </span>
             }
-            description="public/chatbot embedded by components/ChatWidget.tsx"
+            description="Managed under Admin → Chatbot"
           >
             <p className="text-sm text-slate-500">
-              A standalone scripted assistant loaded in a same-origin iframe when a visitor opens the chat bubble. It has
-              no server component and does not create leads; edits go to the HTML, CSS and JS under public/chatbot.
+              The AI assistant behind the chat bubble on every public page and at /chat. It answers from the knowledge base
+              and Chatbot Studio, and files leads, consultation requests and support tickets into the CRM.
             </p>
           </Panel>
         </div>

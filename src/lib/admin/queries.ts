@@ -59,6 +59,8 @@ export interface ShellStatus {
   dbOk: boolean;
   newLeads: number;
   drafts: number;
+  /** Chatbot conversations handed to a person in the last three days. */
+  handoffs: number;
 }
 
 export async function getShellStatus(): Promise<ShellStatus> {
@@ -69,7 +71,13 @@ export async function getShellStatus(): Promise<ShellStatus> {
     ]);
     return { newLeads, drafts };
   });
-  return res.ok ? { dbOk: true, ...res.data } : { dbOk: false, newLeads: 0, drafts: 0 };
+  // Counted separately: the chatbot tables arrive with their own migration,
+  // and their absence must not make the whole panel report the database down.
+  const chat = await safe(() =>
+    prisma.chatConversation.count({ where: { handedOff: true, updatedAt: { gte: new Date(Date.now() - 72 * 3_600_000) } } })
+  );
+  const handoffs = chat.ok ? chat.data : 0;
+  return res.ok ? { dbOk: true, ...res.data, handoffs } : { dbOk: false, newLeads: 0, drafts: 0, handoffs };
 }
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────

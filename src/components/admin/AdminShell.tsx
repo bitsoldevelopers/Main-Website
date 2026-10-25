@@ -47,7 +47,11 @@ export function AdminShell({ status, identity, children }: { status: ShellStatus
   }
 
   const crumbs = breadcrumbsFor(pathname);
-  const badges: Record<"newLeads" | "drafts", number> = { newLeads: status.newLeads, drafts: status.drafts };
+  const badges: Record<"newLeads" | "drafts" | "handoffs", number> = {
+    newLeads: status.newLeads,
+    drafts: status.drafts,
+    handoffs: status.handoffs,
+  };
 
   // Only the most specific matching item is highlighted, so /admin/leads/board
   // lights up "Pipeline Board" without also lighting up "Leads & Applications".
@@ -124,7 +128,11 @@ export function AdminShell({ status, identity, children }: { status: ShellStatus
                           <span
                             className={cn(
                               "rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums",
-                              item.badge === "newLeads" ? "bg-brand-cyan text-brand-dark" : "bg-slate-200 text-slate-900"
+                              item.badge === "newLeads"
+                                ? "bg-brand-cyan text-brand-dark"
+                                : item.badge === "handoffs"
+                                  ? "bg-amber-200 text-amber-900"
+                                  : "bg-slate-200 text-slate-900"
                             )}
                           >
                             {count}

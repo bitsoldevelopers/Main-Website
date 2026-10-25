@@ -32,6 +32,9 @@ export const PERMISSIONS = [
   "outreach.read", // lead sources, automations, sequences, logs
   "outreach.write", // run imports, start and stop automations, edit templates
   "outreach.manage", // connect Google, sender settings, suppression list
+  "chatbot.view", // conversations, analytics, tickets & meetings, knowledge base
+  "chatbot.write", // reply to or pause a conversation, edit the knowledge base, update requests
+  "chatbot.manage", // Chatbot Studio, simulator, setup
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -46,8 +49,10 @@ const ROLE_PERMISSIONS: Record<AdminRole, readonly Permission[]> = {
     "social.post",
     "outreach.read",
     "outreach.write",
+    "chatbot.view",
+    "chatbot.write",
   ],
-  EDITOR: ["content.write", "media.write", "seo.write", "social.post"],
+  EDITOR: ["content.write", "media.write", "seo.write", "social.post", "chatbot.view", "chatbot.write"],
 };
 
 export function hasPermission(role: AdminRole, permission: Permission): boolean {

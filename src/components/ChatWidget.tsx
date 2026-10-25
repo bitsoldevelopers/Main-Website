@@ -1,29 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, X } from "lucide-react";
+import { Bot, MessageSquare, X } from "lucide-react";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 
 /**
- * BITSOL MARKETING — Master Chatbot widget.
+ * BITSOL MARKETING — AI assistant widget.
  *
- * The chatbot itself is the standalone scripted app that lives in
- * `public/chatbot/`. We embed it in a same-origin <iframe> so its dark-glass
- * theme and imperative DOM logic stay fully isolated from the site's Tailwind
- * styles (X-Frame-Options: SAMEORIGIN allows this — see next.config.ts).
+ * A floating button on every public page that opens the website chat. The
+ * conversation runs through /api/chat, which answers from the knowledge base
+ * and Chatbot Studio settings in the admin panel and files leads, consultation
+ * requests and support tickets into the CRM.
  *
- * The iframe is lazy-mounted on first open and kept alive afterwards, so the
- * conversation persists when the user minimises and reopens the panel, and no
- * chatbot assets load until someone actually wants to chat.
+ * The panel is mounted on first open and kept alive afterwards, so the
+ * conversation persists when the visitor minimises and reopens it, and no chat
+ * code runs until someone actually wants to chat.
  */
 export function ChatWidget() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  // Becomes true the first time the panel is opened; keeps the iframe mounted.
+  // Becomes true the first time the panel is opened; keeps the panel mounted.
+  // Adjusted during render (the React-recommended pattern) rather than in an effect.
   const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    if (open) setLoaded(true);
-  }, [open]);
+  if (open && !loaded) setLoaded(true);
 
   // Close on Escape for keyboard users.
   useEffect(() => {
@@ -35,11 +36,11 @@ export function ChatWidget() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // /chat is the same assistant full-page; a second copy would share its transcript.
+  if (pathname === "/chat") return null;
+
   return (
     <>
-      {/* Chat panel — mounted once opened, then kept in the DOM (hidden, not
-          unmounted) so the iframe stays alive and the conversation persists
-          across minimise/reopen. */}
       {loaded && (
         <motion.div
           initial={false}
@@ -50,31 +51,34 @@ export function ChatWidget() {
           }
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
           style={{ pointerEvents: open ? "auto" : "none" }}
-          className="fixed z-[255] overflow-hidden rounded-3xl border border-white/10 bg-[#060b1e] shadow-2xl shadow-black/50
+          className="fixed z-[255] flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20
                      bottom-4 right-4 left-4 top-4
-                     sm:left-auto sm:top-auto sm:bottom-24 sm:right-6 sm:h-[min(640px,80vh)] sm:w-[390px] sm:max-w-[calc(100vw-3rem)]"
+                     sm:left-auto sm:top-auto sm:bottom-24 sm:right-6 sm:h-[min(660px,82vh)] sm:w-[400px] sm:max-w-[calc(100vw-3rem)]"
           role="dialog"
-          aria-label="BITSOL Marketing AI Assistant"
+          aria-label="BITSOL Marketing AI assistant"
           aria-hidden={!open}
         >
-          {/* Close button overlaid on the chatbot's own header */}
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            aria-label="Close chat"
-            tabIndex={open ? 0 : -1}
-            className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full bg-white/10 text-white/80
-                       backdrop-blur transition hover:bg-white/20 hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-
-          <iframe
-            src="/chatbot/index.html"
-            title="BITSOL Marketing AI Assistant"
-            className="h-full w-full border-0"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
-          />
+          <header className="flex items-center gap-3 border-b border-slate-200 bg-slate-900 px-4 py-3 text-white">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-accent">
+              <Bot className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="text-sm font-bold">BITSOL Marketing</p>
+              <p className="text-[11px] text-white/70">AI assistant · replies in seconds, 24/7</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close chat"
+              tabIndex={open ? 0 : -1}
+              className="grid h-8 w-8 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </header>
+          <div className="min-h-0 flex-1">
+            <ChatPanel variant="widget" />
+          </div>
         </motion.div>
       )}
 
@@ -87,32 +91,16 @@ export function ChatWidget() {
           aria-expanded={open}
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.94 }}
-          className="relative grid h-14 w-14 place-items-center rounded-full text-white shadow-lg shadow-brand-purple/30
-                     bg-gradient-to-br from-brand-cyan to-brand-purple focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan/70"
+          className="relative grid h-14 w-14 place-items-center rounded-full bg-brand-accent text-white shadow-lg shadow-blue-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
         >
-          {/* Pulsing ring — only while closed */}
-          {!open && (
-            <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-brand-cyan/40" />
-          )}
+          {!open && <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-brand-accent/40" />}
           <AnimatePresence mode="wait" initial={false}>
             {open ? (
-              <motion.span
-                key="icon-close"
-                initial={{ rotate: -90, opacity: 0 }}
-                animate={{ rotate: 0, opacity: 1 }}
-                exit={{ rotate: 90, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
+              <motion.span key="icon-close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
                 <X className="h-6 w-6" />
               </motion.span>
             ) : (
-              <motion.span
-                key="icon-open"
-                initial={{ rotate: 90, opacity: 0 }}
-                animate={{ rotate: 0, opacity: 1 }}
-                exit={{ rotate: -90, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
+              <motion.span key="icon-open" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
                 <MessageSquare className="h-6 w-6" />
               </motion.span>
             )}

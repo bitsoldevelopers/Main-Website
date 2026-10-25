@@ -11,6 +11,8 @@
   --color-brand-purple: #7C3AED;
   --color-brand-white: #FFFFFF;
   --color-brand-muted: #94A3B8;
+  /* The chatbot's accent: the chat button, send button and the visitor's messages. */
+  --color-brand-accent: #0066ff;
 
   --font-montserrat: var(--font-montserrat), sans-serif;
 
@@ -518,3 +520,10 @@ html.lenis {
   }
 }
 
+/* ─── Chatbot: Urdu / Punjabi (Shahmukhi) text ───────────────────────────── */
+.urdu {
+  direction: rtl;
+  unicode-bidi: plaintext;
+  font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Segoe UI", system-ui, sans-serif;
+  line-height: 1.9;
+}

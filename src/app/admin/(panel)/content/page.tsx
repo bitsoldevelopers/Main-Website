@@ -28,7 +28,7 @@ const codeContent = [
   { name: "City pages (3)", file: "src/app/(site)/digital-marketing-agency-{lahore,karachi,islamabad}/page.tsx", note: "Each carries its own FAQ and LocalBusiness schema." },
   { name: "Legal pages (5)", file: "src/app/(site)/{terms,privacy,cookies,refund,compliance}/page.tsx", note: "All noindex; rendered through components/LegalPage.tsx." },
   { name: "Footer links & tagline", file: "src/components/Footer.tsx", note: "Four link columns and social icons." },
-  { name: "Chatbot", file: "public/chatbot/", note: "Standalone scripted bot embedded by components/ChatWidget.tsx in an iframe." },
+  { name: "Chatbot defaults", file: "src/data/marketing/", note: "Built-in knowledge and Chatbot Studio defaults. Edit the live versions under Admin → Chatbot." },
 ];
 
 export default async function ContentPage() {

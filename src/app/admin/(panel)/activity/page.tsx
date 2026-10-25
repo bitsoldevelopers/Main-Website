@@ -36,6 +36,8 @@ const ENTITY_TONES: Record<string, PillTone> = {
   testimonial: "purple",
   faq: "purple",
   course: "green",
+  chatbot: "cyan",
+  whatsapp: "green",
 };
 
 function hrefWith(entity: string, q: string, page?: number): string {

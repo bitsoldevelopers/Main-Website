@@ -43,6 +43,12 @@ const nextConfig = {
     ],
   },
 
+  // The WhatsApp webhook is registered with Meta as /webhook. A rewrite, not a
+  // redirect: Meta does not follow 3xx when delivering a webhook.
+  async rewrites() {
+    return [{ source: "/webhook", destination: "/api/whatsapp/webhook" }];
+  },
+
   // www → non-www canonical redirect
   async redirects() {
     return [

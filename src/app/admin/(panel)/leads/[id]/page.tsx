@@ -23,6 +23,7 @@ import {
 import { getAdminSession, requireAdminPage } from "@/lib/admin/auth";
 import { paramFrom } from "@/lib/admin/queries";
 import { listAssignees } from "@/lib/admin/queries-crm";
+import { conversationsForLead } from "@/lib/chatbot/queries";
 import { hasPermission } from "@/lib/admin/rbac";
 import {
   LEAD_KIND_LABELS,
@@ -94,7 +95,13 @@ export default async function LeadProfilePage({ params, searchParams }: { params
 
   const { id } = await params;
   const error = paramFrom((await searchParams).error);
-  const [result, assigneesResult, automationsResult] = await Promise.all([getLeadProfile(id), listAssignees(), listActiveAutomations()]);
+  const [result, assigneesResult, automationsResult, chatResult] = await Promise.all([
+    getLeadProfile(id),
+    listAssignees(),
+    listActiveAutomations(),
+    conversationsForLead(id),
+  ]);
+  const chatConversations = chatResult.ok ? chatResult.data : [];
 
   if (!result.ok) {
     return (
@@ -886,6 +893,23 @@ export default async function LeadProfilePage({ params, searchParams }: { params
               ]}
             />
           </Panel>
+
+          {chatConversations.length > 0 && (
+            <Panel title="Chatbot" description="The conversations this lead came from.">
+              <ul className="space-y-2 text-sm">
+                {chatConversations.map((conversation) => (
+                  <li key={conversation.id} className="flex items-center justify-between gap-3">
+                    <Link href={`/admin/chatbot/conversations/${conversation.id}`} className="font-mono text-xs font-semibold text-cyan-700 hover:underline">
+                      {conversation.reference}
+                    </Link>
+                    <span className="text-xs text-slate-500">
+                      {conversation.channel === "WHATSAPP" ? "WhatsApp" : "Website"} · {conversation.messages} messages · {timeAgo(conversation.updatedAt)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
 
           {canWrite && (
             <Panel title="Danger zone">
