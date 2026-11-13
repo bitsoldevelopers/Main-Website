@@ -8,6 +8,7 @@ import { draftLeadPersonalization, savePersonalization } from "@/app/admin/actio
 import type { FormState } from "@/app/admin/actions";
 import type { OutreachSettings } from "@/lib/automation/settings";
 import type { DripStatus } from "@/lib/automation/drip";
+import { EMAIL_DESIGNS, EMAIL_DESIGN_LABELS } from "@/lib/automation/email/render";
 import { cn } from "@/lib/utils";
 import { Field, FormError, btn, inputClass, selectClass } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/SubmitButton";
@@ -77,6 +78,34 @@ export function SenderSettingsForm({
           <Field label="Emails per minute, at most" htmlFor="batch-limit" hint="The scheduler runs once a minute; this spaces the sends out. 1 spreads 100 emails over about two hours.">
             <input id="batch-limit" name="batchLimit" type="number" min={1} max={100} defaultValue={settings.batchLimit} className={inputClass} />
           </Field>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-slate-900">Email design</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {EMAIL_DESIGNS.map((design) => (
+              <label
+                key={design}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3 text-sm has-checked:border-cyan-600 has-checked:bg-cyan-50/50"
+              >
+                <input type="radio" name="emailDesign" value={design} defaultChecked={settings.emailDesign === design} className="mt-1" />
+                <span>
+                  <span className="font-semibold text-slate-900">{EMAIL_DESIGN_LABELS[design].label}</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{EMAIL_DESIGN_LABELS[design].hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <label className="flex cursor-pointer items-start gap-3 text-sm">
+            <input type="checkbox" name="showServices" defaultChecked={settings.showServices} className="mt-1" />
+            <span>
+              <span className="font-semibold text-slate-900">Show our services in every email</span>
+              <span className="block text-xs leading-relaxed text-slate-500">
+                Web development, mobile app development, digital marketing and AI chatbots, each linked to its page on the website. Preview it under
+                Templates.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="space-y-4 rounded-md border border-slate-200 p-4">

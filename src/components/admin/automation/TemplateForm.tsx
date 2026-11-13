@@ -4,7 +4,7 @@ import { useActionState, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { saveTemplate } from "@/app/admin/actions-automation";
 import type { FormState } from "@/app/admin/actions";
-import { SAMPLE_VALUES, TEMPLATE_VARIABLES, composeEmail, type TemplateValues } from "@/lib/automation/email/render";
+import { SAMPLE_VALUES, TEMPLATE_VARIABLES, composeEmail, type EmailDesign, type TemplateValues } from "@/lib/automation/email/render";
 import { Field, FormError, btn, inputClass } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 
@@ -22,6 +22,9 @@ export interface PreviewFooter {
   companyAddress: string;
   signature: string;
   senderName: string;
+  /** Settings → Sender: how emails look, and whether they list the services. */
+  design?: EmailDesign;
+  showServices?: boolean;
 }
 
 const BARE: TemplateValues = {
@@ -62,6 +65,8 @@ export function TemplateForm({ initial, footer }: { initial?: TemplateFormValues
       ctaLabel,
       ctaUrl,
       values,
+      design: footer.design,
+      services: footer.showServices ? { siteUrl: "https://bitsolmarketing.com" } : null,
       footer: {
         companyName: footer.companyName,
         companyAddress: footer.companyAddress,
@@ -205,8 +210,14 @@ export function TemplateForm({ initial, footer }: { initial?: TemplateFormValues
             </p>
             <p className="mt-1 font-semibold text-slate-900">{preview.subject || <span className="font-normal text-slate-400">No subject</span>}</p>
           </div>
-          {/* Rendered by composeEmail, which escapes every value it inserts. */}
-          <div className="px-5 py-5" dangerouslySetInnerHTML={{ __html: preview.html }} />
+          {/* Rendered by composeEmail, which escapes every value it inserts. A sandboxed
+              frame keeps the admin's styles off the email and the email's off the admin. */}
+          <iframe
+            title="Email preview"
+            srcDoc={preview.html}
+            sandbox=""
+            className={`block h-[760px] w-full ${footer.design === "futuristic" ? "bg-[#060a13]" : "bg-white"}`}
+          />
         </div>
 
         {preview.unknown.length > 0 && (

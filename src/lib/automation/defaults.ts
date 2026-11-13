@@ -36,7 +36,7 @@ I came across {{company_name|your company}}{{#title}} and noticed that you are w
 
 {{#personalization}}{{personalization}}
 
-{{/personalization}}Based on the company's profile, I thought BITSOL Marketing could potentially help with your digital growth and lead generation. We work on SEO, paid campaigns and AI automation.
+{{/personalization}}Based on the company's profile, I thought BITSOL Marketing could help with your digital growth. We build websites and mobile apps, run digital marketing (SEO, Google and Meta ads), and set up AI chatbots that answer and book customers on your website and WhatsApp.
 
 Would you be open to a short call to see whether there is a fit?
 
@@ -66,9 +66,10 @@ Best regards,
 
 To be concrete about what BITSOL Marketing does:
 
-- SEO and content that brings in search traffic
-- Paid campaigns on Google, Meta and LinkedIn
-- AI automation for lead capture and follow-up
+- Web development: fast websites and web apps that turn visitors into enquiries
+- Mobile app development: iOS and Android apps, from idea to App Store launch
+- Digital marketing: SEO, Google and Meta ads and social media that bring in leads
+- AI chatbots: assistants on your website and WhatsApp that reply 24/7 and book calls
 
 If any of these is on your list{{#company_name}} at {{company_name}}{{/company_name}}, I can put together a short plan at no cost.
 

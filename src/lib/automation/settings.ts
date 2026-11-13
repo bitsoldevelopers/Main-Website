@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { checkEmailSyntax } from "./validate";
+import { isEmailDesign, type EmailDesign } from "./email/render";
 
 /**
  * Who outreach email is sent as, and how fast. Stored in the existing
@@ -23,6 +24,10 @@ export interface OutreachSettings {
   dripPerDay: number;
   /** The automation the drip starts prospects in. */
   dripAutomationId: string;
+  /** How outreach email looks (email/render.ts). */
+  emailDesign: EmailDesign;
+  /** Show the four services (web, apps, marketing, chatbots) in every email. */
+  showServices: boolean;
 }
 
 export const DEFAULT_OUTREACH_SETTINGS: OutreachSettings = {
@@ -37,6 +42,9 @@ export const DEFAULT_OUTREACH_SETTINGS: OutreachSettings = {
   batchLimit: 5,
   dripPerDay: 0,
   dripAutomationId: "",
+  // The owner chose the showcase design for outreach (14 Nov 2026).
+  emailDesign: "showcase",
+  showServices: true,
 };
 
 const PREFIX = "outreach.";
@@ -71,6 +79,8 @@ export async function getOutreachSettings(): Promise<OutreachSettings> {
     batchLimit: clampInt(stored.get("batchLimit"), base.batchLimit, 1, 100),
     dripPerDay: clampInt(stored.get("dripPerDay"), base.dripPerDay, 0, 1000),
     dripAutomationId: stored.get("dripAutomationId") ?? base.dripAutomationId,
+    emailDesign: isEmailDesign(stored.get("emailDesign")) ? (stored.get("emailDesign") as EmailDesign) : base.emailDesign,
+    showServices: stored.has("showServices") ? stored.get("showServices") === "1" : base.showServices,
   };
 }
 
@@ -84,7 +94,11 @@ export async function saveOutreachSettings(input: Partial<OutreachSettings>): Pr
           ? String(clampInt(raw, DEFAULT_OUTREACH_SETTINGS.batchLimit, 1, 100))
           : key === "dripPerDay"
             ? String(clampInt(raw, DEFAULT_OUTREACH_SETTINGS.dripPerDay, 0, 1000))
-            : String(raw).trim();
+            : key === "showServices"
+              ? (raw ? "1" : "0")
+              : key === "emailDesign"
+                ? (isEmailDesign(raw) ? raw : DEFAULT_OUTREACH_SETTINGS.emailDesign)
+                : String(raw).trim();
     return { key: `${PREFIX}${key}`, value };
   });
   await prisma.$transaction(

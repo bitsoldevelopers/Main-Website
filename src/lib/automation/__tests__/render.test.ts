@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { evaluateCondition, firstFailedCondition, stopReasonForStatus, type ConditionSubject } from "../conditions";
 import { readUnsubscribeToken, decryptSecret, encryptSecret, unsubscribeToken } from "../crypto";
 import { buildSteps, positionAfter } from "../defaults";
-import { SAMPLE_VALUES, composeEmail, renderTemplate, templateValues, textToHtml, variablesIn, type TemplateValues } from "../email/render";
+import { OUTREACH_SERVICES, SAMPLE_VALUES, composeEmail, renderTemplate, templateValues, textToHtml, variablesIn, type TemplateValues } from "../email/render";
 import { backoffMs } from "../queue";
 import { stopsAutomation } from "@/lib/admin/leads";
 
@@ -105,6 +105,56 @@ describe("composeEmail", () => {
     expect(textToHtml("One\ntwo\n\nSee https://bitsolmarketing.com.")).toBe(
       '<p style="margin:0 0 16px">One<br>two</p>\n<p style="margin:0 0 16px">See <a href="https://bitsolmarketing.com/" style="color:#0891b2">https://bitsolmarketing.com</a>.</p>'
     );
+  });
+
+  describe("designs and the services section", () => {
+    const services = { siteUrl: "https://bitsolmarketing.com/" };
+    const input = { subject: "s", body: "Hi {{first_name}},\n\nA short note.", ctaLabel: "Book a call", ctaUrl: "https://bitsolmarketing.com/contact", values, footer };
+
+    it("lists web, mobile apps, marketing and chatbots with links, in text and HTML", () => {
+      for (const design of ["simple", "futuristic", "showcase"] as const) {
+        const email = composeEmail({ ...input, design, services });
+        for (const service of OUTREACH_SERVICES) {
+          expect(email.html).toContain(service.title);
+          expect(email.html).toContain(`href="https://bitsolmarketing.com${service.path}"`);
+          expect(email.text).toContain(`${service.title}: ${service.line} https://bitsolmarketing.com${service.path}`);
+        }
+      }
+      expect(OUTREACH_SERVICES.map((s) => s.title)).toEqual(["Web Development", "Mobile App Development", "Digital Marketing", "AI Chatbots"]);
+    });
+
+    it("leaves the services out unless asked, and the simple design unchanged", () => {
+      const plain = composeEmail(input);
+      expect(plain.html).not.toContain("What we do");
+      expect(plain.text).not.toContain("What we do");
+      expect(composeEmail({ ...input, design: "simple" }).html).toBe(plain.html);
+    });
+
+    it("showcase: picks the services for the lead's company, escaped, with a default call to action", () => {
+      const hostile = { ...values, company_name: 'Acme <b>"Dental"</b>' };
+      const email = composeEmail({ ...input, ctaLabel: "", ctaUrl: "", values: hostile, design: "showcase", services });
+      expect(email.html).toContain("Picked for Acme &lt;b&gt;&quot;Dental&quot;&lt;/b&gt;");
+      expect(email.html).not.toContain("<b>");
+      expect(email.html).toContain('href="https://bitsolmarketing.com/contact"');
+      expect(email.html).toContain("1 Example Road, Lahore");
+      expect(email.html).toContain('href="https://bitsolmarketing.com/unsubscribe?token=abc"');
+      const nobody = composeEmail({ ...input, values: { ...values, company_name: "" }, design: "showcase", services });
+      expect(nobody.html).toContain("Picked for your business");
+    });
+
+    it("futuristic: a full dark document that still carries the legal footer and escapes values", () => {
+      const hostile = { ...values, first_name: '<img src=x onerror="alert(1)">' };
+      const email = composeEmail({ ...input, values: hostile, design: "futuristic", services });
+      expect(email.html.startsWith("<!doctype html>")).toBe(true);
+      expect(email.html).toContain('name="color-scheme" content="dark"');
+      expect(email.html).toContain("1 Example Road, Lahore");
+      expect(email.html).toContain('href="https://bitsolmarketing.com/unsubscribe?token=abc"');
+      expect(email.html).toContain('href="https://bitsolmarketing.com/contact"');
+      expect(email.html).not.toContain("<img");
+      expect(email.html).toContain("&lt;img");
+      // The hidden preheader starts with the body, so inbox lists preview the message, not the brand line.
+      expect(email.html).toMatch(/display:none[^>]*>Hi &lt;img/);
+    });
   });
 });
 

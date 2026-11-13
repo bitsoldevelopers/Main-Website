@@ -57,6 +57,8 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
             companyAddress: sender.data.settings.companyAddress,
             signature: sender.data.settings.signature,
             senderName: sender.data.settings.fromName,
+            design: sender.data.settings.emailDesign,
+            showServices: sender.data.settings.showServices,
           }}
         />
       </Panel>

@@ -570,6 +570,8 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
     ctaLabel: template.ctaLabel,
     ctaUrl: template.ctaUrl,
     values: templateValues(run.lead, { outreachEmail: toEmail, senderName: settings.fromName, senderCompany: settings.companyName }),
+    design: settings.emailDesign,
+    services: settings.showServices ? { siteUrl: siteUrl() } : null,
     footer: {
       companyName: settings.companyName,
       companyAddress: settings.companyAddress,

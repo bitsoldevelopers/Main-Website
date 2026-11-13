@@ -8,7 +8,7 @@ import { actorLabel, requireAdminAction } from "@/lib/admin/auth";
 import { logActivity } from "@/lib/admin/activity";
 import { MANDATORY_STOP_CONDITIONS, isConditionField, isConditionOperator, operatorNeedsValue } from "@/lib/automation/conditions";
 import { syncAutomationSteps, syncAutomationsOfSequence } from "@/lib/automation/defaults";
-import { composeEmail, variablesIn, TEMPLATE_VARIABLES, type TemplateValues } from "@/lib/automation/email/render";
+import { composeEmail, isEmailDesign, variablesIn, TEMPLATE_VARIABLES, type EmailDesign, type TemplateValues } from "@/lib/automation/email/render";
 import { enrollLead, markLeadReplied, pauseLead, resumeLead, stopRunsForLead } from "@/lib/automation/engine";
 import { refreshOutreachEmail } from "@/lib/automation/lead-contacts";
 import { getOutreachSettings, saveOutreachSettings, senderProblems } from "@/lib/automation/settings";
@@ -98,6 +98,8 @@ export async function saveSenderSettings(_prev: FormState, formData: FormData): 
       batchLimit: int(str(formData, "batchLimit"), 5, 1, 100),
       dripPerDay,
       dripAutomationId,
+      emailDesign: isEmailDesign(str(formData, "emailDesign")) ? (str(formData, "emailDesign") as EmailDesign) : "showcase",
+      showServices: formData.get("showServices") === "on",
     });
   } catch (err) {
     return failure(err);
@@ -197,6 +199,8 @@ export async function sendMailboxTestEmail(_prev: MailboxFormState, formData: Fo
       "Hello,\n\nThis is a test from Lead Automation → Settings. If it reached your inbox (not spam), outreach email from this mailbox is being delivered.\n\nReply to it if you like: within about five minutes the reply should show up under Settings → Status as a checked inbox. A reply to a test email does not change any lead.",
     // The test text uses no variables.
     values: {} as TemplateValues,
+    design: settings.emailDesign,
+    services: settings.showServices ? { siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://bitsolmarketing.com" } : null,
     footer: {
       companyName: settings.companyName,
       companyAddress: settings.companyAddress,

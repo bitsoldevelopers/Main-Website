@@ -28,6 +28,8 @@ export default async function NewTemplatePage() {
               companyAddress: sender.data.settings.companyAddress,
               signature: sender.data.settings.signature,
               senderName: sender.data.settings.fromName,
+            design: sender.data.settings.emailDesign,
+            showServices: sender.data.settings.showServices,
             }}
           />
         </Panel>
