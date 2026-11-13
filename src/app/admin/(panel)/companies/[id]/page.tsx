@@ -40,7 +40,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
 
       <Hero
         avatar={
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/10 text-cyan-300">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-md bg-white/15 text-white">
             <Building2 className="h-6 w-6" />
           </span>
         }

@@ -1,5 +1,6 @@
 import { requireAdminPage } from "@/lib/admin/auth";
 import { getShellStatus } from "@/lib/admin/queries";
+import { getShellNotifications } from "@/lib/admin/queries-dashboard";
 import { AdminShell } from "@/components/admin/AdminShell";
 
 // Every screen inside the shell reads live data and the session cookie, so
@@ -8,9 +9,9 @@ export const dynamic = "force-dynamic";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAdminPage();
-  const status = await getShellStatus();
+  const [status, notifications] = await Promise.all([getShellStatus(), getShellNotifications(session.role)]);
   return (
-    <AdminShell status={status} identity={{ name: session.name, role: session.role }}>
+    <AdminShell status={status} identity={{ name: session.name, role: session.role }} notifications={notifications}>
       {children}
     </AdminShell>
   );

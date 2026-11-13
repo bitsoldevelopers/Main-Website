@@ -1020,7 +1020,7 @@ export function ImportWizard({ source, connections = [], googleReady = true, mis
               <div className="mb-3 flex min-h-8 flex-wrap gap-1.5">
                 {settings.tags.length === 0 && <span className="text-xs text-slate-500">No tags.</span>}
                 {settings.tags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-slate-900 py-1 pl-3 pr-1.5 text-xs font-semibold text-white">
+                  <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-adm-primary py-1 pl-3 pr-1.5 text-xs font-semibold text-white">
                     {tag}
                     <button
                       type="button"

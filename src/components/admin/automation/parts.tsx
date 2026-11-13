@@ -29,21 +29,21 @@ export function Hero({
   children?: ReactNode;
 }) {
   return (
-    <section className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b1230] via-[#0f1b45] to-[#1b1147] text-white shadow-lg shadow-slate-900/10">
-      <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
+    <section className="adm-hero relative mb-6 overflow-hidden rounded-md">
+      <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
       <div className="relative flex flex-col gap-5 p-6 md:flex-row md:items-start md:justify-between md:p-7">
         <div className="flex min-w-0 items-start gap-4">
           {avatar}
           <div className="min-w-0">
-            {eyebrow && <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300">{eyebrow}</p>}
-            <h1 className="break-words text-2xl font-bold leading-tight md:text-3xl">{title}</h1>
-            {subtitle && <p className="mt-1.5 text-sm text-slate-200">{subtitle}</p>}
-            {meta && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">{meta}</div>}
+            {eyebrow && <p className="mb-1.5 text-[0.8125rem] font-medium text-white/75">{eyebrow}</p>}
+            <h1 className="break-words text-[1.5rem] leading-tight text-white md:text-[1.75rem]">{title}</h1>
+            {subtitle && <p className="mt-1.5 text-[0.9375rem] text-white/85">{subtitle}</p>}
+            {meta && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/75">{meta}</div>}
           </div>
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2 md:max-w-[52%] md:justify-end">{actions}</div>}
       </div>
-      {children && <div className="relative border-t border-white/10 px-6 py-4 md:px-7">{children}</div>}
+      {children && <div className="relative border-t border-white/15 px-6 py-4 md:px-7">{children}</div>}
     </section>
   );
 }
@@ -51,17 +51,17 @@ export function Hero({
 /** Buttons that sit on the dark hero. */
 export const heroBtn = {
   primary:
-    "inline-flex items-center justify-center gap-2 rounded-xl bg-brand-cyan px-3.5 py-2 text-sm font-bold text-brand-dark transition hover:bg-brand-cyan/90 disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex items-center justify-center gap-2 rounded-md bg-[#ffffff] px-4 py-2 text-[0.9375rem] font-medium text-[var(--adm-primary)] transition hover:bg-[#ffffff]/90 disabled:pointer-events-none disabled:opacity-50",
   secondary:
-    "inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex items-center justify-center gap-2 rounded-md border border-white/30 bg-white/10 px-4 py-2 text-[0.9375rem] font-medium text-white transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-50",
 };
 
 export function HeroStat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-0.5 truncate text-sm font-semibold text-white">{value}</p>
-      {hint && <p className="truncate text-xs text-slate-400">{hint}</p>}
+      <p className="text-[0.8125rem] text-white/70">{label}</p>
+      <p className="mt-0.5 truncate text-[0.9375rem] font-medium text-white">{value}</p>
+      {hint && <p className="truncate text-xs text-white/70">{hint}</p>}
     </div>
   );
 }
@@ -99,7 +99,7 @@ export interface WorkflowNode {
 }
 
 const NODE_STYLE: Record<WorkflowNode["type"], { icon: LucideIcon; className: string }> = {
-  TRIGGER: { icon: Circle, className: "bg-slate-900 text-white" },
+  TRIGGER: { icon: Circle, className: "bg-adm-primary text-white" },
   CHECK: { icon: CheckCircle2, className: "bg-slate-100 text-slate-600" },
   SEND_EMAIL: { icon: Mail, className: "bg-cyan-100 text-cyan-700" },
   WAIT: { icon: Clock, className: "bg-amber-100 text-amber-700" },

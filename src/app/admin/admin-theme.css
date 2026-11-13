@@ -1,0 +1,348 @@
+/*
+ * Admin panel theme: a Vuexy-style admin look (vertical menu, floating
+ * navbar, soft cards) built for BITSOL. Everything is scoped to `.admin-ui`,
+ * the root element in src/app/admin/layout.tsx, so the public site's
+ * editorial palette is untouched.
+ *
+ * How it reaches every admin screen without editing each one: Tailwind v4
+ * utilities read their colours from CSS variables (`text-slate-500` is
+ * `color: var(--color-slate-500)`). Redefining those variables on
+ * `.admin-ui` re-themes all markup underneath it:
+ *   slate   → the neutral ink and surface scale (inverted in dark mode)
+ *   cyan    → the primary colour (the admin markup uses cyan for its accent)
+ *   emerald → success, amber → warning, red → danger, violet → info
+ *
+ * Root attributes, set before first paint by the inline script in the
+ * layout and afterwards by the theme customizer:
+ *   data-theme="light|dark"       resolved mode ("system" resolves first)
+ *   data-primary="purple|blue|teal|rose"
+ *   data-menu="expanded|collapsed"
+ *   data-semidark="1"             dark menu on a light page
+ *   data-content="compact|wide"   1440px column, or full width
+ */
+
+/* ─── Light base ─────────────────────────────────────────────────────────── */
+
+.admin-ui,
+.admin-ui[data-theme="dark"] .admin-keep-light {
+  --adm-primary: #7367f0;
+  --adm-success: #28c76f;
+  --adm-info: #00bad1;
+  --adm-warning: #ff9f43;
+  --adm-danger: #ff4c51;
+  /* Second series in two-part charts. Validated against the primary
+     options with the dataviz palette checker (light and dark surfaces). */
+  --adm-chart-2: #00bad1;
+
+  --adm-body: #f8f7fa;
+  --adm-paper: #ffffff;
+  --adm-heading: #444050;
+  --adm-text: #6d6b77;
+  --adm-muted: #acaab1;
+  --adm-border: #e6e6e8;
+  --adm-hover: rgb(47 43 61 / 0.06);
+  /* What the deep (text) steps of every hue mix towards. */
+  --adm-deep: #000000;
+  --adm-backdrop: rgb(23 25 37 / 0.5);
+  --adm-shadow-xs: 0 0.0625rem 0.375rem 0 rgb(47 43 61 / 0.1);
+  --adm-shadow: 0 0.1875rem 0.75rem 0 rgb(47 43 61 / 0.14);
+  --adm-shadow-lg: 0 0.25rem 1.125rem 0 rgb(47 43 61 / 0.16);
+
+  --color-slate-50: #fafafb;
+  --color-slate-100: #f3f2f5;
+  --color-slate-200: #e6e6e8;
+  --color-slate-300: #d1d0d4;
+  --color-slate-400: #acaab1;
+  --color-slate-500: #6d6b77;
+  --color-slate-600: #5f5c6a;
+  --color-slate-700: #55515f;
+  --color-slate-800: #4b4757;
+  --color-slate-900: #444050;
+  --color-slate-950: #2f2b3d;
+
+  color-scheme: light;
+}
+
+/* ─── Dark base (whole panel, or only the menu in semi-dark mode) ──────── */
+
+.admin-ui[data-theme="dark"],
+.admin-ui[data-semidark="1"] .adm-menu {
+  --adm-chart-2: #009db1;
+
+  --adm-body: #25293c;
+  --adm-paper: #2f3349;
+  --adm-heading: #d7d4ec;
+  --adm-text: #acabc1;
+  --adm-muted: #76778e;
+  --adm-border: #44485e;
+  --adm-hover: rgb(225 222 245 / 0.06);
+  --adm-deep: #ffffff;
+  --adm-shadow-xs: 0 0.0625rem 0.375rem 0 rgb(19 17 32 / 0.16);
+  --adm-shadow: 0 0.1875rem 0.75rem 0 rgb(19 17 32 / 0.24);
+  --adm-shadow-lg: 0 0.25rem 1.125rem 0 rgb(19 17 32 / 0.3);
+
+  --color-slate-50: #343850;
+  --color-slate-100: #393d55;
+  --color-slate-200: #44485e;
+  --color-slate-300: #56596f;
+  --color-slate-400: #76778e;
+  --color-slate-500: #acabc1;
+  --color-slate-600: #b3b2c8;
+  --color-slate-700: #bdbbd2;
+  --color-slate-800: #cac8df;
+  --color-slate-900: #d7d4ec;
+  --color-slate-950: #efedfb;
+
+  color-scheme: dark;
+}
+
+/* ─── Primary colour options (after the dark block: same specificity) ──── */
+
+.admin-ui[data-primary="blue"] {
+  --adm-primary: #0066ff;
+}
+.admin-ui[data-primary="teal"] {
+  --adm-primary: #0d9394;
+  /* Teal sits too close to the info cyan, so the second series swaps. */
+  --adm-chart-2: #7367f0;
+}
+.admin-ui[data-primary="rose"] {
+  --adm-primary: #eb3d63;
+}
+
+/* ─── Derived scales, recomputed wherever the base above changes ─────────── */
+
+.admin-ui,
+.admin-ui .adm-menu,
+.admin-ui .admin-keep-light {
+  --color-cyan-50: color-mix(in srgb, var(--adm-primary) 8%, var(--adm-paper));
+  --color-cyan-100: color-mix(in srgb, var(--adm-primary) 16%, var(--adm-paper));
+  --color-cyan-200: color-mix(in srgb, var(--adm-primary) 30%, var(--adm-paper));
+  --color-cyan-300: color-mix(in srgb, var(--adm-primary) 50%, var(--adm-paper));
+  --color-cyan-400: color-mix(in srgb, var(--adm-primary) 75%, var(--adm-paper));
+  --color-cyan-500: var(--adm-primary);
+  --color-cyan-600: var(--adm-primary);
+  --color-cyan-700: color-mix(in srgb, var(--adm-primary) 90%, var(--adm-deep));
+  --color-cyan-800: color-mix(in srgb, var(--adm-primary) 78%, var(--adm-deep));
+  --color-cyan-900: color-mix(in srgb, var(--adm-primary) 65%, var(--adm-deep));
+
+  --color-emerald-50: color-mix(in srgb, var(--adm-success) 8%, var(--adm-paper));
+  --color-emerald-100: color-mix(in srgb, var(--adm-success) 16%, var(--adm-paper));
+  --color-emerald-200: color-mix(in srgb, var(--adm-success) 30%, var(--adm-paper));
+  --color-emerald-300: color-mix(in srgb, var(--adm-success) 50%, var(--adm-paper));
+  --color-emerald-400: color-mix(in srgb, var(--adm-success) 75%, var(--adm-paper));
+  --color-emerald-500: var(--adm-success);
+  --color-emerald-600: color-mix(in srgb, var(--adm-success) 86%, var(--adm-deep));
+  --color-emerald-700: color-mix(in srgb, var(--adm-success) 72%, var(--adm-deep));
+  --color-emerald-800: color-mix(in srgb, var(--adm-success) 62%, var(--adm-deep));
+  --color-emerald-900: color-mix(in srgb, var(--adm-success) 52%, var(--adm-deep));
+
+  --color-amber-50: color-mix(in srgb, var(--adm-warning) 8%, var(--adm-paper));
+  --color-amber-100: color-mix(in srgb, var(--adm-warning) 16%, var(--adm-paper));
+  --color-amber-200: color-mix(in srgb, var(--adm-warning) 30%, var(--adm-paper));
+  --color-amber-300: color-mix(in srgb, var(--adm-warning) 50%, var(--adm-paper));
+  --color-amber-400: color-mix(in srgb, var(--adm-warning) 75%, var(--adm-paper));
+  --color-amber-500: var(--adm-warning);
+  --color-amber-600: color-mix(in srgb, var(--adm-warning) 86%, var(--adm-deep));
+  --color-amber-700: color-mix(in srgb, var(--adm-warning) 72%, var(--adm-deep));
+  --color-amber-800: color-mix(in srgb, var(--adm-warning) 62%, var(--adm-deep));
+  --color-amber-900: color-mix(in srgb, var(--adm-warning) 52%, var(--adm-deep));
+
+  --color-red-50: color-mix(in srgb, var(--adm-danger) 8%, var(--adm-paper));
+  --color-red-100: color-mix(in srgb, var(--adm-danger) 16%, var(--adm-paper));
+  --color-red-200: color-mix(in srgb, var(--adm-danger) 30%, var(--adm-paper));
+  --color-red-300: color-mix(in srgb, var(--adm-danger) 50%, var(--adm-paper));
+  --color-red-400: color-mix(in srgb, var(--adm-danger) 75%, var(--adm-paper));
+  --color-red-500: var(--adm-danger);
+  --color-red-600: color-mix(in srgb, var(--adm-danger) 86%, var(--adm-deep));
+  --color-red-700: color-mix(in srgb, var(--adm-danger) 72%, var(--adm-deep));
+  --color-red-800: color-mix(in srgb, var(--adm-danger) 62%, var(--adm-deep));
+  --color-red-900: color-mix(in srgb, var(--adm-danger) 52%, var(--adm-deep));
+
+  /* "purple" tone in the markup; the primary is already purple by default,
+     so this family carries the info hue to stay distinguishable. */
+  --color-violet-50: color-mix(in srgb, var(--adm-info) 8%, var(--adm-paper));
+  --color-violet-100: color-mix(in srgb, var(--adm-info) 16%, var(--adm-paper));
+  --color-violet-200: color-mix(in srgb, var(--adm-info) 30%, var(--adm-paper));
+  --color-violet-300: color-mix(in srgb, var(--adm-info) 50%, var(--adm-paper));
+  --color-violet-400: color-mix(in srgb, var(--adm-info) 75%, var(--adm-paper));
+  --color-violet-500: var(--adm-info);
+  --color-violet-600: color-mix(in srgb, var(--adm-info) 86%, var(--adm-deep));
+  --color-violet-700: color-mix(in srgb, var(--adm-info) 72%, var(--adm-deep));
+  --color-violet-800: color-mix(in srgb, var(--adm-info) 62%, var(--adm-deep));
+  --color-violet-900: color-mix(in srgb, var(--adm-info) 52%, var(--adm-deep));
+
+  /* Brand names used by older admin markup: the logo tile gradient and the
+     primary buttons. brand-dark only ever appears as text on a brand-cyan
+     fill, so it turns white here. */
+  --color-brand-cyan: var(--adm-primary);
+  --color-brand-purple: color-mix(in srgb, var(--adm-primary) 55%, #ffffff);
+  --color-brand-dark: #ffffff;
+  /* shadcn's border token, for any shadcn piece used inside the admin. */
+  --border: var(--adm-border);
+}
+
+/* ─── Page basics ────────────────────────────────────────────────────────── */
+
+.admin-ui {
+  --adm-menu-w: 16.25rem;
+  --adm-menu-w-collapsed: 5.25rem;
+  min-height: 100vh;
+  background-color: var(--adm-body);
+  color: var(--adm-text);
+  font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* globals.css sets `* { border-color: var(--border) }` outside any layer,
+   which outranks every `border-*` colour utility (unlayered beats layered).
+   Inside the admin, step back past it so the utilities apply again, with a
+   themed default underneath for borders that name no colour. */
+.admin-ui *,
+.admin-ui ::before,
+.admin-ui ::after {
+  border-color: revert-layer;
+}
+@layer base {
+  .admin-ui *,
+  .admin-ui ::before,
+  .admin-ui ::after {
+    border-color: var(--adm-border);
+  }
+}
+
+/* The site sets Inter at weight 600 on every heading (unlayered, so it wins
+   over utilities); the admin uses its own face at the Vuexy weight. */
+.admin-ui :is(h1, h2, h3, h4, h5, h6) {
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: normal;
+}
+
+/* Cards and other surfaces written as `bg-white` follow the theme. A screen
+   that must stay light (the WhatsApp preview) opts out with .admin-keep-light. */
+.admin-ui[data-theme="dark"] :is(.bg-white, .hover\:bg-white:hover, .focus\:bg-white:focus):not(.admin-keep-light, .admin-keep-light *) {
+  background-color: var(--adm-paper);
+}
+.admin-ui[data-theme="dark"] .bg-white\/80:not(.admin-keep-light *) {
+  background-color: color-mix(in srgb, var(--adm-paper) 80%, transparent);
+}
+
+.admin-ui ::selection {
+  background-color: color-mix(in srgb, var(--adm-primary) 25%, transparent);
+}
+
+.adm-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--adm-border) transparent;
+}
+
+/* ─── Reusable pieces (component layer, so utilities can still adjust) ──── */
+
+@layer components {
+  .adm-card {
+    border-radius: 0.375rem;
+    background-color: var(--adm-paper);
+    box-shadow: var(--adm-shadow);
+  }
+
+  /* The active menu link and the primary buttons. */
+  .adm-active {
+    background: linear-gradient(
+      270deg,
+      color-mix(in srgb, var(--adm-primary) 70%, transparent) 0%,
+      var(--adm-primary) 100%
+    );
+    box-shadow: 0 0.125rem 0.375rem 0 color-mix(in srgb, var(--adm-primary) 30%, transparent);
+    color: #ffffff;
+  }
+  .adm-shadow-primary {
+    box-shadow: 0 0.125rem 0.375rem 0 color-mix(in srgb, var(--adm-primary) 30%, transparent);
+  }
+
+  .adm-hero {
+    background:
+      radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, #ffffff 16%, transparent) 0%, transparent 55%),
+      linear-gradient(135deg, var(--adm-primary) 0%, color-mix(in srgb, var(--adm-primary) 78%, #1b1440) 100%);
+    box-shadow: 0 0.25rem 1.125rem 0 color-mix(in srgb, var(--adm-primary) 35%, transparent);
+    color: #ffffff;
+  }
+
+  /* The frosted fade behind the floating navbar, so content scrolling up
+     under it softens instead of colliding with the card. */
+  .adm-navbar-band::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 -0.75rem 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--adm-body) 70%, transparent) 44%,
+      color-mix(in srgb, var(--adm-body) 43%, transparent) 73%,
+      transparent
+    );
+    -webkit-backdrop-filter: saturate(200%) blur(6px);
+    backdrop-filter: saturate(200%) blur(6px);
+    -webkit-mask-image: linear-gradient(#000, #000 55%, transparent);
+    mask-image: linear-gradient(#000, #000 55%, transparent);
+  }
+
+  .adm-container {
+    width: 100%;
+    max-width: 1440px;
+    margin-inline: auto;
+  }
+  .admin-ui[data-content="wide"] .adm-container {
+    max-width: none;
+  }
+}
+
+/* ─── Vertical menu: collapse to icons on desktop, expand on hover ──────── */
+
+.adm-when-closed {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .adm-layout {
+    padding-inline-start: var(--adm-menu-w);
+    transition: padding-inline-start 0.25s ease;
+  }
+  .adm-menu {
+    transition:
+      width 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+  .admin-ui[data-menu="collapsed"] .adm-layout {
+    padding-inline-start: var(--adm-menu-w-collapsed);
+  }
+  .admin-ui[data-menu="collapsed"] .adm-menu:not(:hover, :focus-within) {
+    width: var(--adm-menu-w-collapsed);
+  }
+  .admin-ui[data-menu="collapsed"] .adm-menu:not(:hover, :focus-within) .adm-when-open {
+    display: none;
+  }
+  .admin-ui[data-menu="collapsed"] .adm-menu:not(:hover, :focus-within) .adm-when-closed {
+    display: block;
+  }
+  .admin-ui[data-menu="collapsed"] .adm-menu:is(:hover, :focus-within) {
+    box-shadow: var(--adm-shadow-lg);
+  }
+  /* Icons only: a group whose page is open shows as the active link. */
+  .admin-ui[data-menu="collapsed"] .adm-menu:not(:hover, :focus-within) .adm-parent-active {
+    background: linear-gradient(
+      270deg,
+      color-mix(in srgb, var(--adm-primary) 70%, transparent) 0%,
+      var(--adm-primary) 100%
+    );
+    color: #ffffff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-layout,
+  .adm-menu {
+    transition: none;
+  }
+}

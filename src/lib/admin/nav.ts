@@ -25,6 +25,8 @@ import {
   Users,
   History,
   Settings,
+  UserPlus,
+  SquarePen,
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission, type AdminRole, type Permission } from "./rbac";
@@ -43,6 +45,10 @@ export interface AdminNavItem {
 export interface AdminNavGroup {
   heading: string;
   items: AdminNavItem[];
+  /** Header shown above the group in the sidebar; null hides it. Defaults to `heading`. */
+  section?: string | null;
+  /** Render the group in the sidebar as one collapsible parent with these items under it. */
+  menu?: { label: string; icon: LucideIcon };
 }
 
 /**
@@ -53,6 +59,7 @@ export interface AdminNavGroup {
 export const adminNav: AdminNavGroup[] = [
   {
     heading: "Overview",
+    section: null,
     items: [
       {
         label: "Dashboard",
@@ -105,6 +112,8 @@ export const adminNav: AdminNavGroup[] = [
   },
   {
     heading: "Chatbot",
+    section: "Apps",
+    menu: { label: "Chatbot", icon: Bot },
     items: [
       {
         label: "Conversations",
@@ -242,10 +251,34 @@ const allItems = adminNav.flatMap((group) => group.items);
 export function navForRole(role: AdminRole): AdminNavGroup[] {
   return adminNav
     .map((group) => ({
-      heading: group.heading,
+      ...group,
       items: group.items.filter((item) => !item.permission || hasPermission(role, item.permission)),
     }))
     .filter((group) => group.items.length > 0);
+}
+
+export interface AdminShortcut {
+  label: string;
+  hint: string;
+  href: string;
+  icon: LucideIcon;
+  permission?: Permission;
+}
+
+/** The navbar's shortcuts grid, filtered per role like the sidebar. */
+const adminShortcuts: AdminShortcut[] = [
+  { label: "New lead", hint: "Add an inquiry by hand", href: "/admin/leads/new", icon: UserPlus, permission: "leads.write" },
+  { label: "Pipeline", hint: "Move deals along", href: "/admin/leads/board", icon: KanbanSquare, permission: "leads.read" },
+  { label: "New article", hint: "Write for the blog", href: "/admin/blog/new", icon: SquarePen, permission: "content.write" },
+  { label: "Media", hint: "Upload images", href: "/admin/media", icon: ImageIcon, permission: "media.write" },
+  { label: "Conversations", hint: "Website and WhatsApp", href: "/admin/chatbot/conversations", icon: MessagesSquare, permission: "chatbot.view" },
+  { label: "Social", hint: "Write and publish posts", href: "/admin/social", icon: Share2, permission: "social.post" },
+  { label: "Activity", hint: "Who changed what", href: "/admin/activity", icon: History, permission: "activity.read" },
+  { label: "Settings", hint: "Environment and database", href: "/admin/settings", icon: Settings, permission: "settings.view" },
+];
+
+export function shortcutsForRole(role: AdminRole): AdminShortcut[] {
+  return adminShortcuts.filter((s) => !s.permission || hasPermission(role, s.permission));
 }
 
 export function isNavActive(href: string, pathname: string): boolean {

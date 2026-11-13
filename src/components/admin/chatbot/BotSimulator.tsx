@@ -128,7 +128,7 @@ export function BotSimulator() {
           </button>
         </div>
 
-        <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto bg-[#ECE5DD] p-4">
+        <div ref={scroller} className="admin-keep-light flex-1 space-y-2 overflow-y-auto bg-[#ECE5DD] p-4">
           {!bubbles.length && (
             <p className="mx-auto mt-10 max-w-sm rounded-xl bg-white/80 p-3 text-center text-xs text-slate-600">
               Say “Hi”, tap through the menus, or write the way a customer would — “mujhe apne business ke liye whatsapp chatbot chahiye”.

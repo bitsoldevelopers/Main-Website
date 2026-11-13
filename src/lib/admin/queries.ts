@@ -446,19 +446,19 @@ export function integrationFlags(): IntegrationFlag[] {
       key: "GEMINI_API_KEY",
       label: "AI writing (free tier)",
       configured: has("GEMINI_API_KEY") || has("GROQ_API_KEY") || has("OPENROUTER_API_KEY"),
-      usedBy: "Drafting short posts in Social. Not used for articles.",
+      usedBy: "Drafting short posts in Social, not articles. Can also be entered on the Social page.",
     },
     {
       key: "LINKEDIN_CLIENT_ID",
       label: "LinkedIn app",
       configured: has("LINKEDIN_CLIENT_ID") && has("LINKEDIN_CLIENT_SECRET") && has("LINKEDIN_COMPANY_ID"),
-      usedBy: "Connecting the company page in Social",
+      usedBy: "Connecting the company page. Can also be entered on the Social page.",
     },
     {
       key: "FACEBOOK_APP_ID",
       label: "Facebook app",
       configured: has("FACEBOOK_APP_ID") && has("FACEBOOK_APP_SECRET"),
-      usedBy: "Connecting the Facebook Page in Social",
+      usedBy: "Connecting the Facebook Page. Can also be entered on the Social page.",
     },
     {
       key: "TWITTER_API_KEY",

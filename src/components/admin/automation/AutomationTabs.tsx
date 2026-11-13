@@ -33,7 +33,7 @@ export function AutomationTabs({ tabs }: { tabs: SectionTab[] }) {
                 aria-current={current ? "page" : undefined}
                 className={cn(
                   "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold transition",
-                  current ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  current ? "adm-shadow-primary bg-adm-primary text-white" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
                 {tab.label}

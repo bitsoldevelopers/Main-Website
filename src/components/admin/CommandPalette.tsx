@@ -95,11 +95,11 @@ export function CommandPalette({ nav, open, onClose }: { nav: AdminNavGroup[]; o
 
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center px-4 pt-[12vh]">
-      <button type="button" aria-label="Close search" onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+      <button type="button" aria-label="Close search" onClick={onClose} className="absolute inset-0 bg-[var(--adm-backdrop)] backdrop-blur-sm" />
       <div
         role="dialog"
         aria-label="Admin search"
-        className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-2xl shadow-slate-900/20"
+        className="relative w-full max-w-xl overflow-hidden rounded-md bg-white shadow-2xl shadow-black/20"
       >
         <div className="flex items-center gap-3 border-b border-slate-200 px-4">
           {loading ? <Loader2 className="h-4 w-4 animate-spin text-cyan-700" /> : <Search className="h-4 w-4 text-slate-500" />}
@@ -145,7 +145,7 @@ export function CommandPalette({ nav, open, onClose }: { nav: AdminNavGroup[]; o
                   onClick={() => go(hit.href)}
                   onMouseEnter={() => setActive(i)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition",
+                    "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition",
                     i === active ? "bg-cyan-50 text-cyan-700" : "text-slate-600"
                   )}
                 >

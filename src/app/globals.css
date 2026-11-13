@@ -133,6 +133,24 @@
   --font-heading: var(--font-fraunces), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-montserrat: var(--font-montserrat), sans-serif;
+
+  /* Admin panel surfaces and status hues. The values live on `.admin-ui`
+     (src/app/admin/admin-theme.css) and change with its light/dark mode and
+     primary colour, so these utilities must stay `inline`. */
+  --font-admin: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-adm-body: var(--adm-body);
+  --color-adm-paper: var(--adm-paper);
+  --color-adm-heading: var(--adm-heading);
+  --color-adm-text: var(--adm-text);
+  --color-adm-muted: var(--adm-muted);
+  --color-adm-border: var(--adm-border);
+  --color-adm-hover: var(--adm-hover);
+  --color-adm-primary: var(--adm-primary);
+  --color-adm-success: var(--adm-success);
+  --color-adm-info: var(--adm-info);
+  --color-adm-warning: var(--adm-warning);
+  --color-adm-danger: var(--adm-danger);
+  --color-adm-chart-2: var(--adm-chart-2);
 }
 
 :root {
