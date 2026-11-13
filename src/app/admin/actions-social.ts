@@ -7,10 +7,20 @@ import { rateLimit } from "@/lib/rate-limit";
 import { actorLabel, requireAdminAction } from "@/lib/admin/auth";
 import { logActivity } from "@/lib/admin/activity";
 import { publishToAccount, type PublishOutcome } from "@/lib/admin/social/accounts";
+import {
+  SETUP_FIELDS,
+  getSocialConfig,
+  isSetupGroup,
+  missingSetup,
+  readSetupInput,
+  saveSocialConfig,
+  verifySetup,
+  type SocialConfig,
+} from "@/lib/admin/social/config";
 import { countWords, writeSocialCopy } from "@/lib/admin/social/copy";
 import { PLATFORM_INFO, type PostInput, type SocialPlatform } from "@/lib/admin/social/platforms";
 
-/** Writes from Admin → Social: drafting a post, publishing it, disconnecting an account. */
+/** Writes from Admin → Social: app details, drafting a post, publishing it, disconnecting an account. */
 
 // LinkedIn's limit for post text; Facebook allows far more.
 const MAX_POST_CHARS = 3000;
@@ -27,6 +37,52 @@ async function articleFor(slug: string) {
     where: { slug, published: true },
     select: { slug: true, title: true, excerpt: true, image: true },
   });
+}
+
+// ─── App details ────────────────────────────────────────────────────────────
+
+export type SetupState = { ok: boolean; error?: string; message?: string } | null;
+
+const SERVICE: Record<string, string> = { LINKEDIN: "LinkedIn", FACEBOOK: "Facebook", AI: "Google" };
+
+/**
+ * Saves the ids and secrets of one app. Fields left empty keep the value they
+ * have, so a secret does not have to be typed again to change something else.
+ */
+export async function saveSocialSetup(_prev: SetupState, formData: FormData): Promise<SetupState> {
+  const session = await requireAdminAction("social.manage");
+
+  const group = str(formData, "group");
+  if (!isSetupGroup(group)) return { ok: false, error: "Unknown settings group." };
+
+  let changed: Partial<SocialConfig>;
+  try {
+    const current = await getSocialConfig();
+    const input = readSetupInput(group, (key) => str(formData, key), current);
+    if ("error" in input) return { ok: false, error: input.error };
+    changed = input.changed;
+
+    const next = { ...current, ...changed };
+    const missing = missingSetup(group, next);
+    if (missing.length > 0) return { ok: false, error: `Still needed: ${missing.map((f) => f.label).join(", ")}.` };
+
+    const problem = await verifySetup(group, next);
+    if (problem) return { ok: false, error: problem };
+
+    await saveSocialConfig(changed);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "The details could not be saved" };
+  }
+
+  void logActivity({
+    actor: actorLabel(session),
+    action: "social.setup_saved",
+    entity: "social",
+    // Which fields changed, never their values.
+    detail: `${SERVICE[group]}: ${SETUP_FIELDS[group].filter((f) => changed[f.key]).map((f) => f.label).join(", ")}`,
+  });
+  revalidatePath("/admin/social");
+  return { ok: true, message: `Saved. ${SERVICE[group]} recognises these details.` };
 }
 
 // ─── Draft with AI ──────────────────────────────────────────────────────────
@@ -51,11 +107,15 @@ export async function draftSocialCopy(input: {
     if (!article && !topic) return { ok: false, error: "Choose an article or type a topic first." };
 
     const labels = [...new Set(input.platforms ?? [])].map((p) => PLATFORM_INFO[p]?.label).filter(Boolean);
-    const { text, source } = await writeSocialCopy({
-      audience: labels.length > 0 ? labels.join(" and ") : "LinkedIn",
-      subject: article ? article.title : topic,
-      details: article ? [article.excerpt, topic].filter(Boolean).join(" ") : undefined,
-    });
+    const { GEMINI_API_KEY } = await getSocialConfig();
+    const { text, source } = await writeSocialCopy(
+      {
+        audience: labels.length > 0 ? labels.join(" and ") : "LinkedIn",
+        subject: article ? article.title : topic,
+        details: article ? [article.excerpt, topic].filter(Boolean).join(" ") : undefined,
+      },
+      { GEMINI_API_KEY }
+    );
     return { ok: true, text, words: countWords(text), source };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "The draft could not be written" };

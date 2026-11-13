@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import type { SocialConfig } from "./config";
 import { providerError, type ConnectedAccount, type PostInput, type PostResult } from "./platforms";
 
 /**
@@ -16,10 +17,10 @@ const DEFAULT_SCOPES = "w_organization_social r_organization_social";
 const REQUEST_TIMEOUT = 30_000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-export function linkedInAuthUrl(state: string, redirectUri: string): string {
+export function linkedInAuthUrl(config: SocialConfig, state: string, redirectUri: string): string {
   const params = new URLSearchParams({
     response_type: "code",
-    client_id: process.env.LINKEDIN_CLIENT_ID ?? "",
+    client_id: config.LINKEDIN_CLIENT_ID,
     redirect_uri: redirectUri,
     state,
     scope: process.env.LINKEDIN_SCOPES || DEFAULT_SCOPES,
@@ -92,7 +93,7 @@ async function organizationName(token: string, id: string): Promise<string> {
   return `Company page ${id}`;
 }
 
-export async function connectLinkedIn(code: string, redirectUri: string): Promise<ConnectedAccount[]> {
+export async function connectLinkedIn(config: SocialConfig, code: string, redirectUri: string): Promise<ConnectedAccount[]> {
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -100,8 +101,8 @@ export async function connectLinkedIn(code: string, redirectUri: string): Promis
       grant_type: "authorization_code",
       code,
       redirect_uri: redirectUri,
-      client_id: process.env.LINKEDIN_CLIENT_ID ?? "",
-      client_secret: process.env.LINKEDIN_CLIENT_SECRET ?? "",
+      client_id: config.LINKEDIN_CLIENT_ID,
+      client_secret: config.LINKEDIN_CLIENT_SECRET,
     }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT),
   });
@@ -110,7 +111,7 @@ export async function connectLinkedIn(code: string, redirectUri: string): Promis
     throw new Error(`LinkedIn did not issue a token: ${providerError(res.status, body)}`);
   }
 
-  const companyId = process.env.LINKEDIN_COMPANY_ID ?? "";
+  const companyId = config.LINKEDIN_COMPANY_ID;
   return [
     {
       platform: "LINKEDIN",

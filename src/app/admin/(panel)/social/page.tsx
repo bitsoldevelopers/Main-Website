@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { CheckCircle2, ExternalLink, Link2, Send, Share2, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, Link2, Send, Share2, Sparkles, XCircle } from "lucide-react";
 import { requireAdminPage } from "@/lib/admin/auth";
 import { hasPermission } from "@/lib/admin/rbac";
 import { formatDate } from "@/lib/admin/format";
 import { paramFrom } from "@/lib/admin/queries";
 import { SITE_URL } from "@/lib/seo";
 import { listArticleOptions, listSocialAccounts, listSocialPosts, type SocialAccountView } from "@/lib/admin/social/accounts";
+import { SETUP_FIELDS, getSocialConfig, missingSetup, type SetupGroup, type SocialConfig } from "@/lib/admin/social/config";
 import { isCopyWriterConfigured } from "@/lib/admin/social/copy";
-import { PLATFORM_INFO, SOCIAL_PLATFORMS, callbackUrl, missingEnv, type SocialPlatform } from "@/lib/admin/social/platforms";
+import { PLATFORM_INFO, SOCIAL_PLATFORMS, callbackUrl, type SocialPlatform } from "@/lib/admin/social/platforms";
 import { disconnectSocialAccount } from "@/app/admin/actions-social";
 import { Callout, DbUnavailable, EmptyState, PageHeader, Panel, Pill, btn, tdClass, thClass, trClass } from "@/components/admin/ui";
 import { ConfirmButton } from "@/components/admin/SubmitButton";
 import { SocialComposer } from "@/components/admin/SocialComposer";
+import { SocialSetupForm, type SetupFieldView } from "@/components/admin/SocialSetupForm";
 
 export const metadata: Metadata = { title: "Social" };
 
@@ -23,6 +25,19 @@ async function currentOrigin(): Promise<string> {
   if (process.env.NODE_ENV === "production") return SITE_URL;
   const host = (await headers()).get("host");
   return host ? `http://${host}` : SITE_URL;
+}
+
+/** A group's fields for the browser: secrets are reduced to "saved or not". */
+function setupFields(group: SetupGroup, config: SocialConfig): SetupFieldView[] {
+  return SETUP_FIELDS[group].map((field) => ({
+    key: field.key,
+    label: field.label,
+    hint: field.hint,
+    secret: field.secret,
+    numeric: Boolean(field.numeric),
+    saved: Boolean(config[field.key]),
+    current: field.secret ? "" : config[field.key],
+  }));
 }
 
 function ExpiryPill({ account }: { account: SocialAccountView }) {
@@ -37,14 +52,16 @@ function PlatformCard({
   accounts,
   origin,
   canManage,
+  config,
 }: {
   platform: SocialPlatform;
   accounts: SocialAccountView[];
   origin: string;
   canManage: boolean;
+  config: SocialConfig;
 }) {
   const info = PLATFORM_INFO[platform];
-  const missing = missingEnv(platform);
+  const missing = missingSetup(platform, config);
   const connected = accounts.length > 0;
   const needsReconnect = accounts.some((a) => a.daysLeft !== null && a.daysLeft <= EXPIRY_WARNING_DAYS);
   const connectHref = `/api/admin/social/${platform.toLowerCase()}/connect`;
@@ -93,39 +110,59 @@ function PlatformCard({
         </ul>
       )}
 
-      {missing.length > 0 ? (
-        <Callout tone="amber" title={`${info.label} is not set up on the server yet`}>
-          <ol className="mt-1 list-decimal space-y-1 pl-4">
-            <li>
-              Create or open your app at{" "}
-              <a href={info.consoleUrl} target="_blank" rel="noreferrer" className="font-semibold text-cyan-700 underline">
-                {info.consoleLabel}
-              </a>
-              .
-            </li>
-            <li>
-              In {info.callbackSetting}, add: <code className="break-all rounded bg-white px-1.5 py-0.5 text-xs text-slate-900">{callbackUrl(origin, platform)}</code>
-            </li>
-            <li>
-              Add these to the server&apos;s environment variables, then redeploy:{" "}
-              <code className="rounded bg-white px-1.5 py-0.5 text-xs text-slate-900">{missing.join(", ")}</code>
-            </li>
-          </ol>
-        </Callout>
-      ) : canManage ? (
-        <div className="flex flex-wrap items-center gap-3">
+      {!canManage ? (
+        <p className="text-sm text-slate-500">
+          {missing.length > 0
+            ? `An admin has to enter the ${info.label} app details first.`
+            : "Only an admin can connect or disconnect accounts."}
+        </p>
+      ) : missing.length > 0 ? (
+        <>
+          <p className="mb-4 text-sm text-slate-500">
+            Enter the details of your app from{" "}
+            <a href={info.consoleUrl} target="_blank" rel="noreferrer" className="font-semibold text-cyan-700 underline">
+              {info.consoleLabel}
+            </a>
+            . They are checked with {info.label} and stored encrypted.
+          </p>
+          <SocialSetupForm group={platform} fields={setupFields(platform, config)} />
+        </>
+      ) : (
+        <>
           {/* A plain link: the flow leaves the site, so it must be a full page navigation. */}
           <a href={connectHref} className={connected && !needsReconnect ? btn.secondary : btn.primary}>
             <Link2 className="h-4 w-4" />
             {connected ? `Reconnect ${info.label}` : `Connect ${info.label}`}
           </a>
-          <p className="min-w-0 flex-1 text-xs text-slate-500">
-            {info.label} must allow this address in {info.callbackSetting}:{" "}
-            <code className="break-all text-slate-700">{callbackUrl(origin, platform)}</code>
-          </p>
-        </div>
-      ) : (
-        <p className="text-sm text-slate-500">Only an admin can connect or disconnect accounts.</p>
+
+          {/* Open until the first connection succeeds: a missing item is refused on the platform's own screen. */}
+          <details open={!connected} className="mt-4 border-t border-slate-100 pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-900">
+              What your {info.label} app needs
+            </summary>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-600">
+              <li>
+                In {info.callbackSetting}, this address:{" "}
+                <code className="break-all rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-900">
+                  {callbackUrl(origin, platform)}
+                </code>
+              </li>
+              {info.requirements.map((requirement) => (
+                <li key={requirement}>{requirement}</li>
+              ))}
+            </ol>
+            <p className="mt-3 text-xs text-slate-500">{info.refusal}</p>
+          </details>
+
+          <details className="mt-3 border-t border-slate-100 pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-900">
+              Change app details
+            </summary>
+            <div className="mt-4">
+              <SocialSetupForm group={platform} fields={setupFields(platform, config)} />
+            </div>
+          </details>
+        </>
       )}
     </Panel>
   );
@@ -142,12 +179,14 @@ export default async function SocialPage({
   const connectedNote = paramFrom(params.connected);
   const errorNote = paramFrom(params.error);
 
-  const [accounts, posts, articles, origin] = await Promise.all([
+  const [accounts, posts, articles, origin, config] = await Promise.all([
     listSocialAccounts(),
     listSocialPosts(),
     listArticleOptions(),
     currentOrigin(),
+    getSocialConfig(),
   ]);
+  const aiReady = isCopyWriterConfigured(config);
 
   return (
     <>
@@ -180,9 +219,38 @@ export default async function SocialPage({
                 accounts={accounts.data.filter((a) => a.platform === platform)}
                 origin={origin}
                 canManage={canManage}
+                config={config}
               />
             ))}
           </div>
+
+          {canManage && (
+            <Panel
+              title={
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-cyan-700" /> AI writer
+                </span>
+              }
+              description="Drafts the post, about 100 words. It is not used to write articles."
+              actions={aiReady ? <Pill tone="green">Ready</Pill> : <Pill tone="slate">No key</Pill>}
+              className="mb-6"
+            >
+              {aiReady ? (
+                <details>
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-900">
+                    Change the API key
+                  </summary>
+                  <div className="mt-4 max-w-xl">
+                    <SocialSetupForm group="AI" fields={setupFields("AI", config)} />
+                  </div>
+                </details>
+              ) : (
+                <div className="max-w-xl">
+                  <SocialSetupForm group="AI" fields={setupFields("AI", config)} />
+                </div>
+              )}
+            </Panel>
+          )}
 
           <Panel
             title="Write a post"
@@ -199,7 +267,7 @@ export default async function SocialPage({
               <SocialComposer
                 accounts={accounts.data}
                 articles={articles.ok ? articles.data : []}
-                aiReady={isCopyWriterConfigured()}
+                aiReady={aiReady}
                 siteUrl={SITE_URL}
               />
             )}

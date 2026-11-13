@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/admin/activity";
 import { saveConnectedAccounts } from "@/lib/admin/social/accounts";
+import { getSocialConfig } from "@/lib/admin/social/config";
 import { connectFacebook } from "@/lib/admin/social/facebook";
 import { connectLinkedIn } from "@/lib/admin/social/linkedin";
 import { STATE_COOKIE, readState, stateCookieOptions } from "@/lib/admin/social/oauth-state";
@@ -49,7 +50,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
   try {
     const redirectUri = callbackUrl(siteOrigin(req), platform);
-    const accounts = platform === "FACEBOOK" ? await connectFacebook(code, redirectUri) : await connectLinkedIn(code, redirectUri);
+    const config = await getSocialConfig();
+    const accounts =
+      platform === "FACEBOOK"
+        ? await connectFacebook(config, code, redirectUri)
+        : await connectLinkedIn(config, code, redirectUri);
     await saveConnectedAccounts(accounts, state.actor);
     void logActivity({
       actor: state.actor,

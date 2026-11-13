@@ -41,8 +41,15 @@ const PROVIDERS: Provider[] = [
   },
 ];
 
-export function isCopyWriterConfigured(): boolean {
-  return PROVIDERS.some((p) => process.env[p.keyEnv]);
+/** Keys entered in the admin panel, by environment variable name. They win over the environment. */
+export type CopyKeys = Partial<Record<string, string>>;
+
+function keyFor(provider: Provider, keys: CopyKeys): string {
+  return keys[provider.keyEnv] || process.env[provider.keyEnv] || "";
+}
+
+export function isCopyWriterConfigured(keys: CopyKeys = {}): boolean {
+  return PROVIDERS.some((p) => keyFor(p, keys));
 }
 
 export interface CopyRequest {
@@ -92,12 +99,12 @@ export function countWords(text: string): number {
     .filter((word) => word && !word.startsWith("#")).length;
 }
 
-export async function writeSocialCopy(request: CopyRequest): Promise<{ text: string; source: string }> {
+export async function writeSocialCopy(request: CopyRequest, keys: CopyKeys = {}): Promise<{ text: string; source: string }> {
   const prompt = buildPrompt(request);
   const failures: string[] = [];
 
   for (const provider of PROVIDERS) {
-    const key = process.env[provider.keyEnv];
+    const key = keyFor(provider, keys);
     if (!key) continue;
 
     for (const model of provider.models) {
@@ -121,7 +128,7 @@ export async function writeSocialCopy(request: CopyRequest): Promise<{ text: str
 
   throw new Error(
     failures.length === 0
-      ? "No AI key is set on the server. Add GEMINI_API_KEY to the environment variables."
+      ? "No AI key has been entered. An admin can add one under AI writer on this page."
       : `The AI writer is unavailable right now (${failures.join("; ")}). Try again in a minute, or write the post yourself.`
   );
 }

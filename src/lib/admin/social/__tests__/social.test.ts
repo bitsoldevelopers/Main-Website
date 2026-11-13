@@ -4,7 +4,17 @@ import { issueState, readState, STATE_MAX_AGE } from "../oauth-state";
 import { escapeLittleText, linkedInAuthUrl, versionCandidates } from "../linkedin";
 import { facebookAuthUrl } from "../facebook";
 import { buildPrompt, cleanCopy, countWords } from "../copy";
-import { callbackUrl, missingEnv, platformFromSlug, providerError } from "../platforms";
+import { callbackUrl, platformFromSlug, providerError } from "../platforms";
+import { SETUP_FIELDS, isSetupGroup, missingSetup, readSetupInput, type SocialConfig } from "../config";
+
+const EMPTY: SocialConfig = {
+  LINKEDIN_CLIENT_ID: "",
+  LINKEDIN_CLIENT_SECRET: "",
+  LINKEDIN_COMPANY_ID: "",
+  FACEBOOK_APP_ID: "",
+  FACEBOOK_APP_SECRET: "",
+  GEMINI_API_KEY: "",
+};
 
 beforeEach(() => {
   vi.stubEnv("ADMIN_SECRET", "test-secret-for-social-module");
@@ -90,8 +100,8 @@ describe("linkedin", () => {
   });
 
   it("builds the authorization URL", () => {
-    vi.stubEnv("LINKEDIN_CLIENT_ID", "client123");
-    const url = new URL(linkedInAuthUrl("state-abc", "https://bitsolmarketing.com/api/admin/social/linkedin/callback"));
+    const config = { ...EMPTY, LINKEDIN_CLIENT_ID: "client123" };
+    const url = new URL(linkedInAuthUrl(config, "state-abc", "https://bitsolmarketing.com/api/admin/social/linkedin/callback"));
     expect(url.origin + url.pathname).toBe("https://www.linkedin.com/oauth/v2/authorization");
     expect(url.searchParams.get("client_id")).toBe("client123");
     expect(url.searchParams.get("state")).toBe("state-abc");
@@ -103,8 +113,8 @@ describe("linkedin", () => {
 
 describe("facebook", () => {
   it("builds the authorization URL with the page permissions", () => {
-    vi.stubEnv("FACEBOOK_APP_ID", "app456");
-    const url = new URL(facebookAuthUrl("state-xyz", "https://bitsolmarketing.com/api/admin/social/facebook/callback"));
+    const config = { ...EMPTY, FACEBOOK_APP_ID: "app456" };
+    const url = new URL(facebookAuthUrl(config, "state-xyz", "https://bitsolmarketing.com/api/admin/social/facebook/callback"));
     expect(url.hostname).toBe("www.facebook.com");
     expect(url.pathname).toMatch(/^\/v\d+\.\d+\/dialog\/oauth$/);
     expect(url.searchParams.get("client_id")).toBe("app456");
@@ -124,11 +134,6 @@ describe("platforms", () => {
     expect(callbackUrl("https://bitsolmarketing.com", "FACEBOOK")).toBe("https://bitsolmarketing.com/api/admin/social/facebook/callback");
   });
 
-  it("lists the environment variables still missing", () => {
-    vi.stubEnv("FACEBOOK_APP_ID", "app456");
-    vi.stubEnv("FACEBOOK_APP_SECRET", "");
-    expect(missingEnv("FACEBOOK")).toEqual(["FACEBOOK_APP_SECRET"]);
-  });
 
   it("reads error messages from either provider's format", () => {
     expect(providerError(400, { error: { message: "Invalid OAuth access token." } })).toBe("HTTP 400 — Invalid OAuth access token.");
@@ -137,6 +142,47 @@ describe("platforms", () => {
     );
     expect(providerError(403, { message: "Not enough permissions", status: 403 })).toBe("HTTP 403 — Not enough permissions");
     expect(providerError(500, null)).toBe("HTTP 500");
+  });
+});
+
+describe("app details", () => {
+  it("lists what a platform still needs", () => {
+    const config = { ...EMPTY, FACEBOOK_APP_ID: "app456", LINKEDIN_CLIENT_ID: "c", LINKEDIN_CLIENT_SECRET: "s" };
+    expect(missingSetup("FACEBOOK", config).map((f) => f.key)).toEqual(["FACEBOOK_APP_SECRET"]);
+    expect(missingSetup("LINKEDIN", config).map((f) => f.key)).toEqual(["LINKEDIN_COMPANY_ID"]);
+    expect(missingSetup("AI", { ...EMPTY, GEMINI_API_KEY: "k" })).toEqual([]);
+  });
+
+  it("marks every secret as one", () => {
+    const secrets = Object.values(SETUP_FIELDS).flat().filter((f) => f.secret).map((f) => f.key);
+    expect(secrets.sort()).toEqual(["FACEBOOK_APP_SECRET", "GEMINI_API_KEY", "LINKEDIN_CLIENT_SECRET"]);
+  });
+
+  it("reads a submitted form, keeping what was left empty or unchanged", () => {
+    const current = { ...EMPTY, FACEBOOK_APP_ID: "2230340401117627", FACEBOOK_APP_SECRET: "old-secret" };
+    const form = (values: Record<string, string>) => (key: string) => values[key] ?? "";
+
+    expect(readSetupInput("FACEBOOK", form({ FACEBOOK_APP_ID: "2230340401117627", FACEBOOK_APP_SECRET: " new-secret " }), current)).toEqual({
+      changed: { FACEBOOK_APP_SECRET: "new-secret" },
+    });
+    expect(readSetupInput("FACEBOOK", form({ FACEBOOK_APP_ID: "2230340401117627" }), current)).toEqual({ error: "Nothing was changed." });
+    expect(readSetupInput("LINKEDIN", form({ LINKEDIN_CLIENT_ID: "77abc", LINKEDIN_COMPANY_ID: "64600000" }), EMPTY)).toEqual({
+      changed: { LINKEDIN_CLIENT_ID: "77abc", LINKEDIN_COMPANY_ID: "64600000" },
+    });
+  });
+
+  it("refuses an id that is not a number", () => {
+    const form = (values: Record<string, string>) => (key: string) => values[key] ?? "";
+    expect(readSetupInput("FACEBOOK", form({ FACEBOOK_APP_ID: "12ab" }), EMPTY)).toEqual({
+      error: "The App ID is a number, with no spaces or letters.",
+    });
+    expect(readSetupInput("LINKEDIN", form({ LINKEDIN_COMPANY_ID: "linkedin.com/company/646" }), EMPTY)).toHaveProperty("error");
+  });
+
+  it("recognises only its own groups", () => {
+    expect(isSetupGroup("LINKEDIN")).toBe(true);
+    expect(isSetupGroup("AI")).toBe(true);
+    expect(isSetupGroup("TWITTER")).toBe(false);
   });
 });
 

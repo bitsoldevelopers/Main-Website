@@ -4,7 +4,8 @@ import { facebookAuthUrl } from "@/lib/admin/social/facebook";
 import { linkedInAuthUrl } from "@/lib/admin/social/linkedin";
 import { redirectToPath, withQuery } from "@/lib/redirect";
 import { STATE_COOKIE, issueState, stateCookieOptions } from "@/lib/admin/social/oauth-state";
-import { callbackUrl, missingEnv, platformFromSlug, siteOrigin } from "@/lib/admin/social/platforms";
+import { getSocialConfig, missingSetup } from "@/lib/admin/social/config";
+import { callbackUrl, platformFromSlug, siteOrigin } from "@/lib/admin/social/platforms";
 
 /**
  * Starts the OAuth flow: sends a signed-in admin to LinkedIn or Facebook to
@@ -22,15 +23,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ platform
     return redirectToPath(forbidden ? "/admin/forbidden" : "/admin/login");
   }
 
-  const missing = missingEnv(platform);
+  const config = await getSocialConfig();
+  const missing = missingSetup(platform, config);
   if (missing.length > 0) {
-    return redirectToPath(withQuery("/admin/social", "error", `Set ${missing.join(", ")} on the server before connecting.`));
+    return redirectToPath(
+      withQuery("/admin/social", "error", `Enter the ${missing.map((f) => f.label).join(", ")} on this page before connecting.`)
+    );
   }
 
   const { cookie, state } = issueState(platform, actorLabel(session));
   const redirectUri = callbackUrl(siteOrigin(req), platform);
   const res = NextResponse.redirect(
-    platform === "FACEBOOK" ? facebookAuthUrl(state, redirectUri) : linkedInAuthUrl(state, redirectUri)
+    platform === "FACEBOOK" ? facebookAuthUrl(config, state, redirectUri) : linkedInAuthUrl(config, state, redirectUri)
   );
   res.cookies.set(STATE_COOKIE, cookie, stateCookieOptions);
   return res;

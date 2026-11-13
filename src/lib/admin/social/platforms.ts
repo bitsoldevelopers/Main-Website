@@ -14,38 +14,46 @@ export interface PlatformInfo {
   label: string;
   /** What gets connected, in the owner's words. */
   target: string;
-  /** Environment variables the platform needs on the server. */
-  env: string[];
   /** Where the app that owns those credentials is managed. */
   consoleUrl: string;
   consoleLabel: string;
   /** Where in that console the callback URL has to be added. */
   callbackSetting: string;
+  /**
+   * What the app needs in that console before connecting can work. These are
+   * refused on the platform's own screen, where this site cannot explain them.
+   */
+  requirements: string[];
+  /** The platform's wording when a requirement is missing, and what it means. */
+  refusal: string;
 }
 
 export const PLATFORM_INFO: Record<SocialPlatform, PlatformInfo> = {
   LINKEDIN: {
     label: "LinkedIn",
     target: "company page",
-    env: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET", "LINKEDIN_COMPANY_ID"],
     consoleUrl: "https://www.linkedin.com/developers/apps",
     consoleLabel: "LinkedIn Developers",
     callbackSetting: "your app → Auth → Authorized redirect URLs",
+    requirements: [
+      "Under Products, the app has Community Management API. It provides the permission to post as a page (w_organization_social).",
+      "The person who connects is an admin of the company page.",
+    ],
+    refusal: "“Bummer, something went wrong” means the address above is not in the list, or the product is missing.",
   },
   FACEBOOK: {
     label: "Facebook",
     target: "Page",
-    env: ["FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"],
     consoleUrl: "https://developers.facebook.com/apps",
     consoleLabel: "Meta for Developers",
     callbackSetting: "your app → Facebook Login → Settings → Valid OAuth Redirect URIs",
+    requirements: [
+      "Under Use cases, the app has “Manage everything on your Page”. Open it, choose Customize, and press Add next to each of: pages_show_list, pages_read_engagement, pages_manage_posts.",
+      "The person who connects is an admin of the app and of the Page. Anyone else needs Meta's App Review first.",
+    ],
+    refusal: "“Invalid Scopes: …” names a permission from that list that has not been added to the app yet.",
   },
 };
-
-/** Names of the environment variables the platform still needs. */
-export function missingEnv(platform: SocialPlatform): string[] {
-  return PLATFORM_INFO[platform].env.filter((key) => !process.env[key]);
-}
 
 /**
  * The public origin OAuth callbacks come back to. Behind Hostinger's proxy

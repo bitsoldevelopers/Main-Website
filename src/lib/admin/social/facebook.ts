@@ -1,3 +1,4 @@
+import type { SocialConfig } from "./config";
 import { providerError, type ConnectedAccount, type PostInput, type PostResult } from "./platforms";
 
 /**
@@ -15,9 +16,9 @@ const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION}`;
 const SCOPES = "pages_show_list,pages_manage_posts,pages_read_engagement";
 const REQUEST_TIMEOUT = 30_000;
 
-export function facebookAuthUrl(state: string, redirectUri: string): string {
+export function facebookAuthUrl(config: SocialConfig, state: string, redirectUri: string): string {
   const params = new URLSearchParams({
-    client_id: process.env.FACEBOOK_APP_ID ?? "",
+    client_id: config.FACEBOOK_APP_ID,
     redirect_uri: redirectUri,
     state,
     scope: process.env.FACEBOOK_SCOPES || SCOPES,
@@ -38,10 +39,10 @@ async function graph<T>(path: string, params: Record<string, string>, method: "G
   return body as T;
 }
 
-export async function connectFacebook(code: string, redirectUri: string): Promise<ConnectedAccount[]> {
+export async function connectFacebook(config: SocialConfig, code: string, redirectUri: string): Promise<ConnectedAccount[]> {
   const app = {
-    client_id: process.env.FACEBOOK_APP_ID ?? "",
-    client_secret: process.env.FACEBOOK_APP_SECRET ?? "",
+    client_id: config.FACEBOOK_APP_ID,
+    client_secret: config.FACEBOOK_APP_SECRET,
   };
 
   let userToken: string;

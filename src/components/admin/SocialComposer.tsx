@@ -165,7 +165,7 @@ export function SocialComposer({
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
           <span className={cn(draftNote?.tone === "error" ? "text-red-600" : "text-slate-500")}>
             {draftNote?.message ??
-              (aiReady ? "The AI writes about 100 words and a line of hashtags." : "The AI writer is off: no AI key is set on the server.")}
+              (aiReady ? "The AI writes about 100 words and a line of hashtags." : "The AI writer is off: an admin has to add the AI key above.")}
           </span>
           <span className={cn("tabular-nums", text.length > MAX_CHARS ? "font-semibold text-red-600" : "text-slate-500")}>
             {wordsIn(text)} words · {text.length.toLocaleString()} / {MAX_CHARS.toLocaleString()} characters
