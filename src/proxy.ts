@@ -49,6 +49,9 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    // The admin app's home-screen icon (src/app/admin/apple-icon.png): an
+    // iPhone fetches it while the user is still on the login page.
+    if (/^\/admin\/(apple-icon|icon)[\w.-]*$/.test(pathname)) return NextResponse.next();
     const onLoginPage = pathname.startsWith("/admin/login");
     const signedIn = await isValidSession(req.cookies.get(ADMIN_COOKIE)?.value);
 

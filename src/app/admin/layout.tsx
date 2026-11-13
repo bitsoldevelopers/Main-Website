@@ -16,6 +16,16 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
+  // Installable as an app: on iPhone, Safari → Share → Add to Home Screen
+  // opens /admin full screen with its own icon (src/app/admin/apple-icon.png).
+  // The manifest sits outside /admin/ so the login gate in proxy.ts never
+  // redirects it.
+  manifest: "/admin.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "BITSOL Admin",
+    statusBarStyle: "default",
+  },
 };
 
 // The admin's own text face, independent of the public site's editorial type.
