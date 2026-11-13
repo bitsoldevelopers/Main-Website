@@ -53,6 +53,15 @@ const nextConfig = {
   // Node's require instead of bundled: imapflow's logger (pino) uses worker
   // threads that webpack cannot bundle.
   serverExternalPackages: ["nodemailer", "imapflow"],
+  // Build workers. Hostinger's build machine reports 64 CPUs, so Next starts
+  // 63 workers, and each loads the WASM SWC fallback (the host's glibc is too
+  // old for the native binary). On 13 Nov 2026 one of them panicked with "The
+  // global thread pool has not been initialized" and the build aborted; the
+  // same code builds cleanly with a handful of workers. Four keeps the build
+  // fast (67 static pages) without the risk.
+  experimental: {
+    cpus: 4,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
