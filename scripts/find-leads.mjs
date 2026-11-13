@@ -125,11 +125,32 @@ function describe(tags, fallback) {
 
 // ─── OpenStreetMap ──────────────────────────────────────────────────────────
 
-function overpassQuery(cc, industry) {
+function selectorsFor(cc, industry) {
+  return SELECTORS.filter(([ind, , , scope]) => ind === industry && !(cc === "GB" && scope === "local")).map(([, selector]) => selector);
+}
+
+/**
+ * The queries one industry is fetched with. A small country is one query per
+ * industry. The UK is one query per selector, and the long shop list goes in
+ * groups of six: the public servers time out on a single UK-wide query.
+ */
+function queryParts(cc, industry) {
+  const selectors = selectorsFor(cc, industry);
+  if (cc !== "GB") return [selectors];
+  const parts = [];
+  for (const selector of selectors) {
+    if (!selector.startsWith('["shop"~')) {
+      parts.push([selector]);
+      continue;
+    }
+    for (let i = 0; i < SHOP_TYPES.length; i += 6) parts.push([`["shop"~"^(${SHOP_TYPES.slice(i, i + 6).join("|")})$"]`]);
+  }
+  return parts;
+}
+
+function overpassQuery(cc, selectors) {
   const contact = cc === "GB" ? '[~"^(contact:)?email$"~"."]' : '[~"^(contact:)?(email|website)$"~"."]';
-  const parts = SELECTORS.filter(([ind, , , scope]) => ind === industry && !(cc === "GB" && scope === "local")).map(
-    ([, selector]) => `nwr(area.a)${selector}["name"]${contact};`
-  );
+  const parts = selectors.map((selector) => `nwr(area.a)${selector}["name"]${contact};`);
   return `[out:json][timeout:900][maxsize:1073741824];area["ISO3166-1"="${cc}"][admin_level=2]->.a;(${parts.join("")});out tags center;`;
 }
 
@@ -164,10 +185,25 @@ async function osmElements(cc, industry) {
   const file = path.join(CACHE, `osm-${cc}-${industry}.json`);
   if (existsSync(file)) return JSON.parse(await readFile(file, "utf8"));
   log(`OSM: downloading ${COUNTRY_NAME[cc]} / ${INDUSTRY_LABEL[industry]}…`);
-  const elements = await fetchOverpass(overpassQuery(cc, industry), `${cc}/${industry}`);
+  const parts = queryParts(cc, industry);
+  const byId = new Map();
+  for (const [index, selectors] of parts.entries()) {
+    // Each part is cached on its own, so a failure resumes where it stopped.
+    const partFile = parts.length > 1 ? path.join(CACHE, `osm-${cc}-${industry}-part${index + 1}.json`) : null;
+    let elements;
+    if (partFile && existsSync(partFile)) {
+      elements = JSON.parse(await readFile(partFile, "utf8"));
+    } else {
+      elements = await fetchOverpass(overpassQuery(cc, selectors), `${cc}/${industry}${parts.length > 1 ? ` part ${index + 1}/${parts.length}` : ""}`);
+      if (partFile) await writeFile(partFile, JSON.stringify(elements));
+      if (parts.length > 1) log(`  part ${index + 1}/${parts.length}: ${elements.length} listings`);
+      await sleep(10_000); // be gentle with the public servers
+    }
+    for (const element of elements) byId.set(`${element.type}/${element.id}`, element);
+  }
+  const elements = [...byId.values()];
   await writeFile(file, JSON.stringify(elements));
   log(`OSM: ${elements.length} ${COUNTRY_NAME[cc]} / ${INDUSTRY_LABEL[industry]} listings`);
-  await sleep(10_000); // be gentle with the public servers
   return elements;
 }
 
