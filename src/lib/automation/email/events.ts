@@ -34,6 +34,8 @@ export interface InboundEvent {
   occurredAt: Date;
   /** RECEIVED only: who wrote to us. */
   from?: string | null;
+  /** RECEIVED only: provider message ids the mail answers (In-Reply-To / References). */
+  inReplyTo?: string[];
   subject?: string | null;
   detail?: string | null;
   /** Hard bounces are permanent; soft ones (mailbox full…) are not. */
@@ -150,19 +152,29 @@ export async function recordEmailEvent(event: InboundEvent): Promise<EventResult
 }
 
 /**
- * An email arrived at the reply address. It counts as a reply when the
- * sender is an address we have emailed; anything else is somebody else's
- * mail and is left alone.
+ * An email arrived at the reply address. It counts as a reply when it
+ * answers one of our emails (In-Reply-To), or when the sender is an address
+ * we have emailed; anything else is somebody else's mail and is left alone.
+ * The first catches a colleague answering from another address.
  */
 async function recordReply(event: InboundEvent): Promise<EventResult> {
   const from = normalizeEmail(event.from ?? "");
-  if (!from) return "IGNORED";
-
-  const message = await prisma.emailMessage.findFirst({
-    where: { toEmail: from, sentAt: { not: null } },
-    orderBy: { sentAt: "desc" },
-    select: { id: true, leadId: true },
-  });
+  const answered = event.inReplyTo?.length
+    ? await prisma.emailMessage.findFirst({
+        where: { providerMessageId: { in: event.inReplyTo }, sentAt: { not: null } },
+        orderBy: { sentAt: "desc" },
+        select: { id: true, leadId: true },
+      })
+    : null;
+  const message =
+    answered ??
+    (from
+      ? await prisma.emailMessage.findFirst({
+          where: { toEmail: from, sentAt: { not: null } },
+          orderBy: { sentAt: "desc" },
+          select: { id: true, leadId: true },
+        })
+      : null);
   if (!message) return "IGNORED";
 
   try {

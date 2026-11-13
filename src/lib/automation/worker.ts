@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { runDripIfDue } from "./drip";
+import { checkInboxIfDue } from "./email/inbox";
 import { failRun, processRun, type StepBudget } from "./engine";
 import { runImport } from "./import-pipeline";
 import { pruneQuietSyncs, queueDueSyncs } from "./imports";
@@ -29,6 +31,10 @@ export interface TickReport {
   retried: number;
   failed: number;
   emailsSent: number;
+  /** Set when this pass read the mailbox for replies and bounces. */
+  inbox?: string;
+  /** Set when this pass started new prospects from the imported list. */
+  drip?: string;
 }
 
 const state = globalThis as unknown as {
@@ -64,6 +70,14 @@ async function tick(options: { source: string; budgetMs: number; limit: number }
 
   try {
     report.syncsQueued = await queueDueSyncs();
+    // Replies and bounces first, so nobody who just answered gets the next follow-up.
+    const inbox = await checkInboxIfDue();
+    if (inbox) {
+      report.inbox = inbox.ok ? `${inbox.replies} repl${inbox.replies === 1 ? "y" : "ies"}, ${inbox.bounces} bounce${inbox.bounces === 1 ? "" : "s"}` : `Inbox check failed: ${inbox.error}`;
+    }
+    // Then new prospects from the imported list, if today's limit has room.
+    const drip = await runDripIfDue();
+    if (drip && drip.started > 0) report.drip = drip.note;
     const settings = await getOutreachSettings();
     const budget: StepBudget = { sendsLeft: settings.batchLimit };
     const workerId = `${options.source}:${randomUUID().slice(0, 8)}`;

@@ -5,10 +5,12 @@ import { formatDate } from "@/lib/admin/format";
 import { pageFrom, paramFrom } from "@/lib/admin/queries";
 import { hasPermission } from "@/lib/admin/rbac";
 import { removeSuppression } from "@/app/admin/actions-automation";
-import { getSenderSettings, getSetupStatus, listSuppression } from "@/lib/automation/queries";
+import { getSenderSettings, getSetupStatus, listActiveAutomations, listSuppression } from "@/lib/automation/queries";
+import { getDripStatus } from "@/lib/automation/drip";
 import { SUPPRESSION_REASON_LABELS } from "@/lib/automation/suppression";
 import type { SuppressionReason } from "@/lib/automation/outreach-email";
 import { SenderSettingsForm, SuppressionForm } from "@/components/admin/automation/SmallForms";
+import { MailboxSettingsForm, MailboxTools } from "@/components/admin/automation/MailboxForm";
 import { ConfirmButton } from "@/components/admin/SubmitButton";
 import { DbUnavailable, EmptyState, KeyValue, PageHeader, Pagination, Panel, Pill, btn, inputClass, tdClass, thClass, trClass } from "@/components/admin/ui";
 
@@ -17,7 +19,7 @@ export const metadata: Metadata = { title: "Outreach settings" };
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const ENVIRONMENT: { name: string; purpose: string; required: string }[] = [
-  { name: "RESEND_API_KEY", purpose: "Sends the emails (already used for lead notifications).", required: "Required to send" },
+  { name: "RESEND_API_KEY", purpose: "Sends the site's lead notifications, and outreach when Resend is the sender.", required: "For Resend" },
   { name: "AUTOMATION_SECRET", purpose: "Encrypts Google tokens and signs unsubscribe links. Falls back to ADMIN_SECRET.", required: "Recommended" },
   { name: "GOOGLE_CLIENT_ID", purpose: "OAuth client for Google Sheets.", required: "For Google Sheets" },
   { name: "GOOGLE_CLIENT_SECRET", purpose: "OAuth client secret for Google Sheets.", required: "For Google Sheets" },
@@ -36,7 +38,13 @@ export default async function OutreachSettingsPage({ searchParams }: { searchPar
   const sp = await searchParams;
   const q = paramFrom(sp.q);
 
-  const [sender, setup, suppression] = await Promise.all([getSenderSettings(), getSetupStatus(), listSuppression({ page: pageFrom(sp.page), q: q || undefined })]);
+  const [sender, setup, suppression, automations, drip] = await Promise.all([
+    getSenderSettings(),
+    getSetupStatus(),
+    listSuppression({ page: pageFrom(sp.page), q: q || undefined }),
+    listActiveAutomations(),
+    getDripStatus().catch(() => null),
+  ]);
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://bitsolmarketing.com").replace(/\/+$/, "");
 
   return (
@@ -44,13 +52,30 @@ export default async function OutreachSettingsPage({ searchParams }: { searchPar
       <PageHeader
         eyebrow="Lead automation"
         title="Settings"
-        description="Who outreach email is sent as, how fast, and who must never receive it. Credentials live in the server's environment variables, not here."
+        description="Which mailbox outreach is sent from, who it is sent as, how fast, and who must never receive it."
       />
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
+          <Panel id="mailbox" title="Sending mailbox" description="What delivers outreach email, and where replies and bounces are read.">
+            {sender.ok ? (
+              <div className="space-y-5">
+                <MailboxSettingsForm config={sender.data.mailbox} canEdit={canManage} fromEmail={sender.data.settings.fromEmail} />
+                {canManage && sender.data.mailbox.transport === "smtp" && sender.data.mailbox.hasPassword && (
+                  <MailboxTools />
+                )}
+              </div>
+            ) : (
+              <DbUnavailable error={sender.error} />
+            )}
+          </Panel>
+
           <Panel title="Sender" description="Applies to every automation.">
-            {sender.ok ? <SenderSettingsForm settings={sender.data.settings} canEdit={canManage} /> : <DbUnavailable error={sender.error} />}
+            {sender.ok ? (
+              <SenderSettingsForm settings={sender.data.settings} canEdit={canManage} automations={automations.ok ? automations.data : []} drip={drip} />
+            ) : (
+              <DbUnavailable error={sender.error} />
+            )}
           </Panel>
 
           <Panel

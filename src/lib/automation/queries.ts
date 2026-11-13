@@ -4,7 +4,10 @@ import { leadSourceLabel } from "@/lib/admin/leads";
 import { PAGE_SIZE, safe, type Paged, type Result } from "@/lib/admin/queries";
 import { isCryptoConfigured } from "./crypto";
 import { ensureDefaults } from "./defaults";
+import { lastInboxReport } from "./email/inbox";
+import { getMailboxConfig, type MailboxConfig } from "./email/mailbox";
 import { getEmailProvider, isTestMode } from "./email/provider";
+import { smtpPause } from "./email/smtp";
 import { GOOGLE_ENV, isGoogleConfigured } from "./google/client";
 import { isPersonalizerConfigured } from "./personalize";
 import { isSchedulerRunning } from "./scheduler";
@@ -40,25 +43,59 @@ export interface SetupStatus {
 
 export function getSetupStatus(): Promise<Result<SetupStatus>> {
   return safe(async () => {
-    const [settings, connections, activeAutomations] = await Promise.all([
+    const [settings, connections, activeAutomations, mailbox, inbox] = await Promise.all([
       getOutreachSettings(),
       prisma.googleSheetConnection.count({ where: { status: "ACTIVE" } }),
       prisma.automation.count({ where: { status: "ACTIVE" } }),
+      getMailboxConfig(),
+      lastInboxReport(),
     ]);
-    const provider = getEmailProvider();
+    const provider = await getEmailProvider();
     const problems = senderProblems(settings);
     const has = (key: string) => Boolean(process.env[key]);
+    const viaMailbox = mailbox.transport === "smtp";
+    const paused = viaMailbox ? smtpPause() : null;
+
+    const tracking: SetupItem = viaMailbox
+      ? {
+          key: "webhook",
+          label: "Reply and bounce tracking",
+          done: mailbox.watchInbox && Boolean(inbox?.ok),
+          detail: !mailbox.watchInbox
+            ? "The inbox is not watched: replies do not stop sequences and bounces are not noticed. Turn it on under Sending mailbox."
+            : !inbox
+              ? "The inbox is read every 5 minutes once the mailbox is saved."
+              : inbox.ok
+                ? `Inbox read ${new Date(inbox.at).toLocaleString("en-GB", { timeZone: "Asia/Karachi", dateStyle: "medium", timeStyle: "short" })}: ${inbox.scanned} new, ${inbox.replies} repl${inbox.replies === 1 ? "y" : "ies"}, ${inbox.bounces} bounce${inbox.bounces === 1 ? "" : "s"}.`
+                : `The last inbox check failed: ${inbox.error}`,
+          href: "/admin/automation/settings#mailbox",
+          required: false,
+        }
+      : {
+          key: "webhook",
+          label: "Delivery and reply tracking",
+          done: has("RESEND_WEBHOOK_SECRET"),
+          detail: has("RESEND_WEBHOOK_SECRET")
+            ? "The Resend webhook is signed and accepted."
+            : "Set RESEND_WEBHOOK_SECRET and add the webhook in Resend. Until then bounces, opens and replies are not detected; mark replies by hand.",
+          required: false,
+        };
 
     const items: SetupItem[] = [
       {
         key: "provider",
-        label: "Email provider",
-        done: provider.isConfigured(),
+        label: viaMailbox ? "Sending mailbox" : "Email provider",
+        done: provider.isConfigured() && !paused,
         detail: isTestMode()
           ? "Test mode: emails are recorded but not delivered (OUTREACH_EMAIL_MODE=test)."
-          : provider.isConfigured()
-            ? "Resend is configured (RESEND_API_KEY)."
-            : provider.setupHint,
+          : paused
+            ? `Sending is paused until ${paused.until.toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", timeStyle: "short" })} after a mailbox problem: ${paused.error}`
+            : provider.isConfigured()
+              ? viaMailbox
+                ? `Sending from the mailbox ${mailbox.user} (${mailbox.smtpHost}).`
+                : "Resend is configured (RESEND_API_KEY)."
+              : provider.setupHint,
+        href: viaMailbox ? "/admin/automation/settings#mailbox" : undefined,
         required: true,
       },
       {
@@ -92,15 +129,7 @@ export function getSetupStatus(): Promise<Result<SetupStatus>> {
         href: "/admin/automation/sources/google-sheets",
         required: false,
       },
-      {
-        key: "webhook",
-        label: "Delivery and reply tracking",
-        done: has("RESEND_WEBHOOK_SECRET"),
-        detail: has("RESEND_WEBHOOK_SECRET")
-          ? "The Resend webhook is signed and accepted."
-          : "Set RESEND_WEBHOOK_SECRET and add the webhook in Resend. Until then bounces, opens and replies are not detected; mark replies by hand.",
-        required: false,
-      },
+      tracking,
       {
         key: "cron",
         label: "Scheduler",
@@ -731,10 +760,10 @@ export function listSuppression(filters: { page: number; q?: string }): Promise<
   });
 }
 
-export function getSenderSettings(): Promise<Result<{ settings: OutreachSettings; problems: string[]; aiConfigured: boolean }>> {
+export function getSenderSettings(): Promise<Result<{ settings: OutreachSettings; problems: string[]; aiConfigured: boolean; mailbox: MailboxConfig }>> {
   return safe(async () => {
-    const settings = await getOutreachSettings();
-    return { settings, problems: senderProblems(settings), aiConfigured: isPersonalizerConfigured() };
+    const [settings, mailbox] = await Promise.all([getOutreachSettings(), getMailboxConfig()]);
+    return { settings, problems: senderProblems(settings), aiConfigured: isPersonalizerConfigured(), mailbox };
   });
 }
 

@@ -19,6 +19,10 @@ export interface OutreachSettings {
   dailyLimit: number;
   /** Most emails sent per scheduler run, to space sends out. */
   batchLimit: number;
+  /** Imported prospects started per day by the drip (drip.ts); 0 = off. */
+  dripPerDay: number;
+  /** The automation the drip starts prospects in. */
+  dripAutomationId: string;
 }
 
 export const DEFAULT_OUTREACH_SETTINGS: OutreachSettings = {
@@ -31,6 +35,8 @@ export const DEFAULT_OUTREACH_SETTINGS: OutreachSettings = {
   signature: "",
   dailyLimit: 50,
   batchLimit: 5,
+  dripPerDay: 0,
+  dripAutomationId: "",
 };
 
 const PREFIX = "outreach.";
@@ -63,6 +69,8 @@ export async function getOutreachSettings(): Promise<OutreachSettings> {
     signature: stored.get("signature") ?? base.signature,
     dailyLimit: clampInt(stored.get("dailyLimit"), base.dailyLimit, 1, 2000),
     batchLimit: clampInt(stored.get("batchLimit"), base.batchLimit, 1, 100),
+    dripPerDay: clampInt(stored.get("dripPerDay"), base.dripPerDay, 0, 1000),
+    dripAutomationId: stored.get("dripAutomationId") ?? base.dripAutomationId,
   };
 }
 
@@ -74,7 +82,9 @@ export async function saveOutreachSettings(input: Partial<OutreachSettings>): Pr
         ? String(clampInt(raw, DEFAULT_OUTREACH_SETTINGS.dailyLimit, 1, 2000))
         : key === "batchLimit"
           ? String(clampInt(raw, DEFAULT_OUTREACH_SETTINGS.batchLimit, 1, 100))
-          : String(raw).trim();
+          : key === "dripPerDay"
+            ? String(clampInt(raw, DEFAULT_OUTREACH_SETTINGS.dripPerDay, 0, 1000))
+            : String(raw).trim();
     return { key: `${PREFIX}${key}`, value };
   });
   await prisma.$transaction(

@@ -1,4 +1,7 @@
 import { Resend } from "resend";
+import { getOutreachSettings } from "../settings";
+import { getMailboxConfig, getMailboxCredentials, mailboxProblems } from "./mailbox";
+import { createSmtpProvider } from "./smtp";
 
 /**
  * The boundary between the automation engine and whoever delivers the mail.
@@ -21,7 +24,16 @@ export interface OutboundEmail {
 
 export type SendResult =
   | { ok: true; id: string }
-  | { ok: false; error: string; /** Worth trying again later (rate limit, outage). */ retryable: boolean };
+  | {
+      ok: false;
+      error: string;
+      /** Worth trying again later (rate limit, outage). */
+      retryable: boolean;
+      /** The sending side is broken (login, server, sender): wait for a fix, fail nothing. */
+      setup?: boolean;
+      /** The recipient's address was refused outright: a hard bounce. */
+      bounced?: boolean;
+    };
 
 export interface EmailProvider {
   name: string;
@@ -93,6 +105,14 @@ export function isTestMode(): boolean {
   return process.env.OUTREACH_EMAIL_MODE === "test";
 }
 
-export function getEmailProvider(): EmailProvider {
-  return isTestMode() ? testProvider : resendProvider;
+/**
+ * Who delivers outreach right now: test mode, the mailbox over SMTP, or
+ * Resend, as chosen under Lead Automation → Settings → Sending mailbox.
+ */
+export async function getEmailProvider(): Promise<EmailProvider> {
+  if (isTestMode()) return testProvider;
+  const config = await getMailboxConfig();
+  if (config.transport !== "smtp") return resendProvider;
+  const settings = await getOutreachSettings();
+  return createSmtpProvider(await getMailboxCredentials(), mailboxProblems(config, settings.fromEmail));
 }

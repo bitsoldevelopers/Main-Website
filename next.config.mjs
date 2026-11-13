@@ -49,6 +49,10 @@ const devCacheBuster =
 const nextConfig = {
   ...devCacheBuster,
   output: "standalone",
+  // The outreach mailbox (SMTP + IMAP, src/lib/automation/email). Loaded with
+  // Node's require instead of bundled: imapflow's logger (pino) uses worker
+  // threads that webpack cannot bundle.
+  serverExternalPackages: ["nodemailer", "imapflow"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

@@ -24,12 +24,28 @@ shows the state of each.
    file). It only adds tables and columns. To check the result, open
    `https://bitsolmarketing.com/blog-images/x`: *Not found* means the tables
    are there, *Image unavailable* means they are not.
-2. **Email provider.** `RESEND_API_KEY` is already set for lead notifications.
-   In Resend, verify the domain outreach is sent from. A separate sending
-   subdomain (for example `outreach.bitsolmarketing.com`) keeps cold outreach
-   from affecting the reputation of the main domain.
+2. **Sending mailbox.** Settings → Sending mailbox. Two choices:
+   - **My mailbox (Hostinger email)**, the usual one. Enter the mailbox
+     address and its password (stored encrypted with `AUTOMATION_SECRET` /
+     `ADMIN_SECRET`); the servers default to Hostinger's
+     (`smtp.hostinger.com:465`, `imap.hostinger.com:993`). *Save and test*
+     logs in to both and reports the result; *Send test* sends a sample.
+     Business Starter allows 1,000 emails per mailbox in any 24 hours,
+     including mail sent by hand from that mailbox. With *Watch the inbox*
+     on, the inbox is read every 5 minutes: a reply stops that lead's
+     sequence, a bounce suppresses the address, out-of-office replies are
+     ignored. Nothing in the mailbox is marked read, moved or deleted.
+   - **Resend**: `RESEND_API_KEY` is already set for lead notifications.
+     Verify the sending domain in Resend; replies and bounces need step 6.
+
+   A login, server or sender failure pauses all sending for 15 minutes rather
+   than failing each lead (repeated failed logins can lock a mailbox); saving
+   the mailbox settings lifts the pause. A dedicated mailbox for outreach
+   keeps cold email from affecting the address the team works from.
 3. **Sender.** Settings → Sender: name, address, reply-to, postal address,
-   daily limit. Start with a low limit on a new domain.
+   daily limit. Sending from the mailbox, the sender address must be that
+   mailbox (or an alias of it). Start around 20 a day on a new mailbox and
+   raise it over two to three weeks to the target (for example 100).
 4. **Activate the automation.** Automations → *BITSOL Cold Outreach* is
    created as a draft. Read its four emails under Templates, edit them, then
    Activate.
@@ -42,7 +58,8 @@ shows the state of each.
    Publish the OAuth consent screen ("In production"). While it is in
    "Testing", Google expires the authorisation after 7 days and the account
    has to be reconnected.
-6. **Tracking** (recommended). In Resend → Webhooks add
+6. **Tracking with Resend** (not needed when sending from the mailbox with
+   *Watch the inbox* on). In Resend → Webhooks add
    `https://bitsolmarketing.com/api/webhooks/resend` for the `email.*` events
    and set its signing secret as `RESEND_WEBHOOK_SECRET`. Without it bounces,
    opens and replies are not detected. For automatic reply detection also set
@@ -54,11 +71,41 @@ shows the state of each.
    The app also runs the queue itself once a minute, but only while the Node
    process is up.
 
+## A big prospect list, a few a day
+
+**Building the list.** `node scripts/find-leads.mjs` builds a list of
+businesses (real estate & builders, clinics & healthcare, schools &
+training, hospitality & retail) in Pakistan, the UAE and the UK that publish
+their own email address: the address in their OpenStreetMap listing, or, for
+Pakistani and Emirati businesses that list only a website, the address on
+that website's home, contact or about page (robots.txt respected, at most 3
+pages a site). Every address is checked for syntax, placeholders, no-reply
+and public-sector domains (gov, NHS, state schools) and a live mail server;
+chains are left out, one business per domain, UK company domains only. The
+files land in `../leads/` (outside the repo: contact data is never
+committed): `leads-PK.csv`, `leads-AE.csv`, `leads-UK.csv` and `summary.json`.
+Downloads and crawls are cached in `../leads/cache/`, so a re-run is quick.
+Options: `--target 10000`, `--countries PK,AE,GB`, `--out <dir>`.
+
+**Importing it.** Sources → CSV, one file at a time, tag each with its market
+(`PK`, `UAE`, `UK`), and leave *Start the automation* **off**. The columns
+already match; Industry, Country and Email Source are kept with each row.
+
+**The daily drip.** Settings → Sender → *Daily drip*: how many new prospects
+start per day and in which automation. The drip starts imported prospects,
+oldest import first, but only while the daily email limit has room once the
+emails already sent and the follow-ups due in the next 24 hours are counted,
+so follow-ups are never crowded out. Each prospect costs up to four emails:
+at 100 emails a day, about 25 new prospects a day is the steady state, and a
+10,000-prospect list lasts roughly a year. A shorter sequence or a higher
+daily limit gets through it faster. A prospect that cannot be emailed when its
+turn comes (unsubscribed or bounced meanwhile) is passed over, not retried.
+
 ## Environment variables
 
 | Variable | Needed for | Notes |
 |---|---|---|
-| `RESEND_API_KEY` | Sending | Already in use |
+| `RESEND_API_KEY` | Sending through Resend | Already in use. Not needed for outreach from the mailbox, whose details are entered in the admin |
 | `AUTOMATION_SECRET` | Encryption, unsubscribe links | Falls back to `ADMIN_SECRET`. Set it, and never change it: changing it breaks unsubscribe links in emails already sent and the stored Google tokens |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Sheets | |
 | `GOOGLE_REDIRECT_URI` | — | Only if the redirect URI must differ |
@@ -94,12 +141,14 @@ shows the state of each.
 |---|---|
 | `src/lib/automation/` | The library: normalise, validate, import pipeline, engine, queue, Google client |
 | `src/lib/automation/sources/` | Source adapters. A new source only has to produce a header row and rows |
-| `src/lib/automation/email/` | Provider interface (Resend), template rendering, event handling |
+| `src/lib/automation/email/` | Provider interface (Resend, or the mailbox over SMTP), inbox reading over IMAP, template rendering, event handling |
 | `src/app/admin/(panel)/automation/` | Admin pages |
 | `src/app/admin/actions-{automation,import,leads}.ts` | Server actions |
 | `src/app/api/admin/{google,automation,leads}/` | Admin endpoints |
 | `src/app/api/{automation/cron,webhooks/resend,unsubscribe}/` | Public endpoints |
 | `src/instrumentation.ts` | Starts the in-process scheduler |
+| `src/lib/automation/drip.ts` | The daily drip through an imported list |
+| `scripts/find-leads.mjs` | Builds the prospect list from public business listings |
 
 ## Tests
 

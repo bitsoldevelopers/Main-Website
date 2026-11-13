@@ -7,6 +7,7 @@ import { addSuppression, createTask, runQueueNow, saveSenderSettings, startLeadA
 import { draftLeadPersonalization, savePersonalization } from "@/app/admin/actions-leads";
 import type { FormState } from "@/app/admin/actions";
 import type { OutreachSettings } from "@/lib/automation/settings";
+import type { DripStatus } from "@/lib/automation/drip";
 import { cn } from "@/lib/utils";
 import { Field, FormError, btn, inputClass, selectClass } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/SubmitButton";
@@ -24,7 +25,17 @@ function Saved({ state, children }: { state: FormState; children: string }) {
 
 // ─── Sender settings ────────────────────────────────────────────────────────
 
-export function SenderSettingsForm({ settings, canEdit }: { settings: OutreachSettings; canEdit: boolean }) {
+export function SenderSettingsForm({
+  settings,
+  canEdit,
+  automations = [],
+  drip = null,
+}: {
+  settings: OutreachSettings;
+  canEdit: boolean;
+  automations?: { id: string; name: string; status: string }[];
+  drip?: DripStatus | null;
+}) {
   const [state, formAction] = useActionState<FormState, FormData>(saveSenderSettings, null);
   const errors = state?.fieldErrors ?? {};
 
@@ -36,7 +47,7 @@ export function SenderSettingsForm({ settings, canEdit }: { settings: OutreachSe
           <Field label="Sender name" htmlFor="from-name" error={errors.fromName} hint="What the recipient sees as the sender.">
             <input id="from-name" name="fromName" defaultValue={settings.fromName} placeholder="Adnan from BITSOL Marketing" className={inputClass} required />
           </Field>
-          <Field label="Sender address" htmlFor="from-email" error={errors.fromEmail} hint="On a domain that is verified with the email provider.">
+          <Field label="Sender address" htmlFor="from-email" error={errors.fromEmail} hint="Sending from your mailbox: that mailbox's address. With Resend: on a domain verified there.">
             <input id="from-email" name="fromEmail" type="email" defaultValue={settings.fromEmail} placeholder="adnan@outreach.bitsolmarketing.com" className={inputClass} required />
           </Field>
         </div>
@@ -60,12 +71,46 @@ export function SenderSettingsForm({ settings, canEdit }: { settings: OutreachSe
           <textarea id="signature" name="signature" rows={3} defaultValue={settings.signature} placeholder={"Muhammad Adnan Bashir\nBITSOL Marketing · +92 310 3175175"} className={inputClass} />
         </Field>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Emails per day, at most" htmlFor="daily-limit" hint="Across all automations, in any 24 hours. Start low on a new sending domain and raise it over weeks.">
+          <Field label="Emails per day, at most" htmlFor="daily-limit" hint="Across all automations, in any 24 hours. Hostinger allows 1,000 per mailbox, including mail you send by hand. Start around 20 on a new mailbox and raise it over 2–3 weeks.">
             <input id="daily-limit" name="dailyLimit" type="number" min={1} max={2000} defaultValue={settings.dailyLimit} className={inputClass} />
           </Field>
-          <Field label="Emails per minute, at most" htmlFor="batch-limit" hint="The scheduler runs once a minute; this spaces the sends out.">
+          <Field label="Emails per minute, at most" htmlFor="batch-limit" hint="The scheduler runs once a minute; this spaces the sends out. 1 spreads 100 emails over about two hours.">
             <input id="batch-limit" name="batchLimit" type="number" min={1} max={100} defaultValue={settings.batchLimit} className={inputClass} />
           </Field>
+        </div>
+
+        <div className="space-y-4 rounded-md border border-slate-200 p-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Daily drip: work through an imported list</h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Import a big list without starting it, and the drip starts a few prospects a day (oldest import first). Each prospect gets up to four
+              emails, so follow-ups always go first: new prospects only start while today&apos;s email limit has room. With 100 emails a day, about 25 new
+              prospects a day keeps every follow-up on time.
+            </p>
+            {drip && (
+              <p className="mt-2 text-xs font-medium text-slate-700">
+                {drip.enabled
+                  ? `On: ${drip.startedLastDay} of ${drip.perDay} started in the last 24 hours, ${drip.waiting.toLocaleString("en-GB")} prospects waiting${drip.automationActive ? "" : ` — “${drip.automationName ?? "the automation"}” is not active, so nobody is started`}.`
+                  : `Off. ${drip.waiting.toLocaleString("en-GB")} imported prospects are waiting to be started.`}
+              </p>
+            )}
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="New prospects per day, at most" htmlFor="drip-per-day" error={errors.dripPerDay} hint="0 turns the drip off.">
+              <input id="drip-per-day" name="dripPerDay" type="number" min={0} max={1000} defaultValue={settings.dripPerDay} className={inputClass} />
+            </Field>
+            <Field label="Start them in" htmlFor="drip-automation" error={errors.dripAutomationId} hint="The automation must be active.">
+              <select id="drip-automation" name="dripAutomationId" defaultValue={settings.dripAutomationId} className={selectClass}>
+                <option value="">Choose an automation</option>
+                {automations.map((automation) => (
+                  <option key={automation.id} value={automation.id}>
+                    {automation.name}
+                    {automation.status === "ACTIVE" ? "" : ` (${automation.status.toLowerCase()})`}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
         </div>
       </fieldset>
       {canEdit ? (

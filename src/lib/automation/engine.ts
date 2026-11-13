@@ -8,6 +8,7 @@ import {
 } from "./conditions";
 import { unsubscribeToken } from "./crypto";
 import { getEmailProvider } from "./email/provider";
+import { pauseSmtp, smtpPause } from "./email/smtp";
 import { composeEmail, renderTemplate, templateValues } from "./email/render";
 import { refreshOutreachEmail } from "./lead-contacts";
 import { normalizeEmail } from "./normalize";
@@ -530,11 +531,13 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
     return { kind: "skipped" };
   }
 
-  const provider = getEmailProvider();
+  const provider = await getEmailProvider();
   const inAnHour = new Date(now.getTime() + 60 * 60_000);
   if (!provider.isConfigured()) {
     return { kind: "defer", until: inAnHour, note: `Email provider is not configured. ${provider.setupHint}` };
   }
+  const paused = provider.name === "smtp" ? smtpPause(now.getTime()) : null;
+  if (paused) return { kind: "defer", until: paused.until, note: `Sending is paused after a mailbox problem: ${paused.error}` };
   const settings = await getOutreachSettings();
   const problems = senderProblems(settings);
   if (problems.length > 0) return { kind: "defer", until: inAnHour, note: `Sender is not set up: ${problems[0]}` };
@@ -618,7 +621,14 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
   if (!result.ok) {
     await prisma.emailMessage.update({ where: { id: message.id }, data: { status: "FAILED", error: result.error.slice(0, 2000) } });
     await prisma.emailEvent.create({ data: { messageId: message.id, leadId: run.leadId, type: "FAILED", payload: { error: result.error } } });
+    if (result.setup) {
+      // Not this lead's fault: hold every send until the mailbox is fixed.
+      budget.sendsLeft = 0;
+      const until = pauseSmtp(result.error);
+      return { kind: "defer", until, note: `Mailbox problem, sending paused: ${result.error}` };
+    }
     if (result.retryable) throw new RetryableError(result.error);
+    if (result.bounced) await markBounced({ leadId: run.leadId, email: toEmail, detail: result.error, source: "Mail server" });
     await recordActivity({ leadId: run.leadId, type: "EMAIL_FAILED", title: `Email could not be sent: ${step.label}`, detail: result.error, actor: ENGINE });
     await closeRun(handle(run), "FAILED", "SEND_FAILED", ENGINE, result.error);
     return { kind: "stopped", note: `Send failed: ${result.error}` };
