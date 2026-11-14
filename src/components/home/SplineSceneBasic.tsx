@@ -7,14 +7,14 @@ import { Spotlight } from "@/components/ui/spotlight";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useHasMounted } from "@/components/navbar/NavPortal";
 
 export function SplineSceneBasic() {
   const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const [showSpline, setShowSpline] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     // Skip the heavy 3D scene on small screens — saves ~800KB of JS + the scene file
     if (typeof window !== "undefined" && window.matchMedia("(max-width: 1024px)").matches) {
       return;

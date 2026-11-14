@@ -20,7 +20,7 @@ async function deploy() {
         // Ensure we are in the public_html directory
         try {
             await client.cd("public_html");
-        } catch (e) {
+        } catch {
             console.log("Could not find public_html, staying in root.");
         }
 

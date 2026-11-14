@@ -15,7 +15,7 @@ export default function ContactPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-7xl font-bold mb-8 text-slate-900 dark:text-white"
           >
-            Let's Build the <span className="text-gradient">Future</span>
+            Let&apos;s Build the <span className="text-gradient">Future</span>
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -23,7 +23,7 @@ export default function ContactPage() {
             transition={{ delay: 0.1 }}
             className="text-black dark:text-brand-muted text-xl"
           >
-            Whether you're looking for AI automation, a futuristic web engine, or custom trading tech, our architects are ready to help.
+            Whether you&apos;re looking for AI automation, a futuristic web engine, or custom trading tech, our architects are ready to help.
           </motion.p>
         </div>
 

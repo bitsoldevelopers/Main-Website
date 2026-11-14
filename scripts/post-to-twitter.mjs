@@ -222,7 +222,7 @@ async function run() {
   console.log(`Posts: ${posts.length}\n`);
 
   if (DRY_RUN) {
-    posts.forEach((p, i) => {
+    posts.forEach((p) => {
       console.log(`\n── ${p.label} (${p.text.length} chars) ──`);
       console.log(p.text);
     });

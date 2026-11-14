@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Brain, Rocket, Shield, Target, Users, Zap } from "lucide-react";
+import { Brain, Shield, Target, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline";
 import { journeyData } from "@/lib/journey";
@@ -63,6 +63,7 @@ export default function AboutPage() {
           >
              {/* Without w/h Unsplash sends the full-resolution original:
                  6MB for a square that renders at most ~600px wide. */}
+             {/* eslint-disable-next-line @next/next/no-img-element -- already sized and compressed by Unsplash's URL parameters */}
              <img
                src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=75&w=900&h=900"
                alt="Technology"
@@ -116,9 +117,9 @@ export default function AboutPage() {
               <h2 className="text-4xl font-bold mb-6 text-slate-900 dark:text-white">Muhammad Adnan Bashir</h2>
               
               <blockquote className="relative mb-10">
-                <span className="absolute -top-6 -left-4 text-8xl text-brand-cyan/20 font-serif">"</span>
+                <span className="absolute -top-6 -left-4 text-8xl text-brand-cyan/20 font-serif">&quot;</span>
                 <p className="text-2xl italic leading-relaxed text-slate-800 dark:text-brand-white/90">
-                  At BITSOL, we don't just build technology; we architect growth. Our journey started with a simple belief: that AI should be accessible, actionable, and transformational for every ambitious brand. Today, we continue to push the boundaries of what's possible, ensuring our partners lead the digital revolution rather than follow it.
+                  At BITSOL, we don&apos;t just build technology; we architect growth. Our journey started with a simple belief: that AI should be accessible, actionable, and transformational for every ambitious brand. Today, we continue to push the boundaries of what&apos;s possible, ensuring our partners lead the digital revolution rather than follow it.
                 </p>
               </blockquote>
 

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight, Zap, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -10,7 +10,7 @@ export interface TimelineItem {
   date: string;
   content: string;
   category: string;
-  icon: any;
+  icon: LucideIcon;
   relatedIds: number[];
   status: "completed" | "in-progress" | "pending";
   energy: number;

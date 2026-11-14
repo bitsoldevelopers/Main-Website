@@ -5,7 +5,6 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-
 import { GlowingCard } from "@/components/ui/glowing-card";
 import { ContactForm } from "@/components/ContactForm";
 import { X, MessageSquareText } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export function ContactPopup() {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,8 +61,8 @@ export function ContactPopup() {
                       <MessageSquareText className="w-6 h-6 text-brand-cyan" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Let's Discuss Your Project</h3>
-                      <p className="text-sm text-brand-muted">Drop us a line and we'll get back to you shortly.</p>
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Let&apos;s Discuss Your Project</h3>
+                      <p className="text-sm text-brand-muted">Drop us a line and we&apos;ll get back to you shortly.</p>
                     </div>
                   </div>
 

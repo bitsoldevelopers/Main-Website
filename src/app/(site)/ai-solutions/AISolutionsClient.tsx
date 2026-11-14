@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Bot, Cpu, MessageSquare, Zap, Mic, BarChart, Settings } from "lucide-react";
+import { Bot, Cpu, MessageSquare, Zap, Mic, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const aiSolutions = [
@@ -61,7 +61,7 @@ export default function AISolutionsClient() {
             transition={{ delay: 0.1 }}
             className="text-xl text-brand-muted leading-relaxed"
           >
-            We deploy the world's most advanced artificial intelligence to automate, optimize, and scale your business operations beyond human limits.
+            We deploy the world&apos;s most advanced artificial intelligence to automate, optimize, and scale your business operations beyond human limits.
           </motion.p>
         </div>
 

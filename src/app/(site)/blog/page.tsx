@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { GlowingCard } from "@/components/ui/glowing-card";
@@ -85,13 +86,14 @@ export default async function BlogPage({
     image: string | null;
     excerpt: string | null;
     content: string;
-    tags: string[];
+    // A JSON column: normally an array of tag names.
+    tags: Prisma.JsonValue;
     createdAt: Date;
   };
 
   const page = pageFrom((await searchParams).page);
 
-  let posts: any[] = [];
+  let posts: PostRow[] = [];
   let totalPosts = 0;
   let loaded = false;
 
@@ -162,7 +164,7 @@ export default async function BlogPage({
               const excerpt =
                 post.excerpt ||
                 stripHtml(post.content).slice(0, 160) + "…";
-              const firstTag = post.tags?.[0] ?? "AI Marketing";
+              const firstTag = Array.isArray(post.tags) && typeof post.tags[0] === "string" ? post.tags[0] : "AI Marketing";
 
               return (
                 <GlowingCard key={post.id} className="h-full">
@@ -212,7 +214,7 @@ export default async function BlogPage({
                       <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-200 dark:border-white/10">
                         <span className="flex items-center gap-1.5 text-xs text-brand-muted">
                           <User className="w-3 h-3" />
-                          {post.author?.name || post.author || "BITSOL Team"}
+                          {post.author || "BITSOL Team"}
                         </span>
                         <span className="text-xs text-brand-muted">
                           {readTime(post.content)}

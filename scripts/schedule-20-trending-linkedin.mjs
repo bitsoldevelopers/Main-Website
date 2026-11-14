@@ -1031,7 +1031,7 @@ async function run() {
     }
 
     process.stdout.write(`[${num}/${articles.length}] ${preview}... `);
-    const { res, version, fallback, scheduled: wasScheduled } = await schedulePost(post.text, post.scheduledAt);
+    const { res, version, fallback } = await schedulePost(post.text, post.scheduledAt);
 
     if (fallback || (res && (res.status === 422 || res.status === 400))) {
       // Scheduling not permitted — fall back to immediate publish

@@ -198,7 +198,7 @@ export function MorphingCardStack({
                           layout === "list" && "line-clamp-none",
                         )}
                       >
-                        "{card.description}"
+                        &quot;{card.description}&quot;
                       </p>
                     </div>
 

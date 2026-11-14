@@ -35,7 +35,7 @@ const logo = `<div style="display:flex;align-items:center;gap:10px;">
 const tag = (text) =>
   `<span style="display:inline-block;padding:4px 14px;border-radius:50px;background:${CYAN}22;border:1px solid ${CYAN}44;color:${CYAN};font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">${text}</span>`;
 
-function wrap(content, accent = CYAN) {
+function wrap(content) {
   return `<!DOCTYPE html><html><head>
   <meta charset="UTF-8">
   <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;}</style>

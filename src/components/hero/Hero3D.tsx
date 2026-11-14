@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, Sphere, MeshDistortMaterial, Points, PointMaterial } from "@react-three/drei";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 function AnimatedSphere() {
@@ -36,16 +36,22 @@ function AnimatedSphere() {
   );
 }
 
+/**
+ * `count` points scattered through a 10-unit cube. A seeded generator keeps
+ * rendering pure: the cloud is the same on every render instead of being
+ * rebuilt (and jumping) each time the component renders.
+ */
+function scatterPoints(count: number): Float32Array {
+  let seed = 0x2f6b9d3;
+  const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < positions.length; i++) positions[i] = (random() - 0.5) * 10;
+  return positions;
+}
+
 function Particles({ count = 5000 }) {
   const pointsRef = useRef<THREE.Points>(null!);
-
-  const particlesPosition = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    const x = (Math.random() - 0.5) * 10;
-    const y = (Math.random() - 0.5) * 10;
-    const z = (Math.random() - 0.5) * 10;
-    particlesPosition.set([x, y, z], i * 3);
-  }
+  const particlesPosition = useMemo(() => scatterPoints(count), [count]);
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime();

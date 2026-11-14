@@ -19,9 +19,13 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
   const [openSection, setOpenSection] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // Closing the menu collapses any open section. Adjusted while rendering
+  // (React's pattern for resetting state when a prop changes), not in an effect.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
     if (!open) setOpenSection(null);
-  }, [open]);
+  }
 
   useEffect(() => {
     if (!open) return;

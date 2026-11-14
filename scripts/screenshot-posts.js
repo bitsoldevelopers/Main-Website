@@ -48,7 +48,7 @@ async function prepPage(page, url) {
     // Force light theme
     document.documentElement.classList.remove("dark");
     document.documentElement.classList.add("light");
-    try { localStorage.setItem("theme", "light"); } catch (e) {}
+    try { localStorage.setItem("theme", "light"); } catch { /* storage may be blocked */ }
 
     // Hide floating dock so it doesn't overlap
     const style = document.createElement("style");
@@ -73,7 +73,7 @@ async function prepPage(page, url) {
   // Wait for h1 to appear (content loaded past loading state)
   try {
     await page.waitForSelector("h1", { timeout: 15000 });
-  } catch (e) { /* page may not have h1 */ }
+  } catch { /* page may not have h1 */ }
 
   // Extra settle time for Framer Motion / Lenis
   await wait(3000);

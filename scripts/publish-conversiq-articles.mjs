@@ -22,7 +22,6 @@ try {
 const API_KEY  = process.env.BLOG_API_KEY;
 const BASE_URL = "https://bitsolmarketing.com";
 const AUTHOR   = "BITSOL Marketing Team";
-const CONVERSIQ_URL = "https://conversiq.bitsolmarketing.com";
 
 const articles = [
 

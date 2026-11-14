@@ -117,59 +117,52 @@ const MacOSDock: React.FC<MacOSDockProps> = ({
     });
   }, [baseIconSize, baseSpacing]);
 
-  // Initialize positions
-  useEffect(() => {
+  // Lay the icons out at rest whenever the apps or the icon size change.
+  // Done while rendering (React's "adjust state when props change" pattern)
+  // rather than in an effect, so the first paint already has positions.
+  const layoutKey = `${apps.length}:${baseIconSize}:${baseSpacing}`;
+  const [laidOutFor, setLaidOutFor] = useState('');
+  if (laidOutFor !== layoutKey) {
+    setLaidOutFor(layoutKey);
     const initialScales = apps.map(() => minScale);
-    const initialPositions = calculatePositions(initialScales);
     setCurrentScales(initialScales);
-    setCurrentPositions(initialPositions);
-  }, [apps, calculatePositions, minScale, config]);
+    setCurrentPositions(calculatePositions(initialScales));
+  }
 
-  // Animation loop
-  const animateToTarget = useCallback(() => {
-    const targetScales = calculateTargetMagnification(mouseX);
-    const targetPositions = calculatePositions(targetScales);
-    const lerpFactor = mouseX !== null ? 0.2 : 0.12;
-
-    setCurrentScales(prevScales => {
-      return prevScales.map((currentScale, index) => {
-        const diff = targetScales[index] - currentScale;
-        return currentScale + (diff * lerpFactor);
-      });
-    });
-
-    setCurrentPositions(prevPositions => {
-      return prevPositions.map((currentPos, index) => {
-        const diff = targetPositions[index] - currentPos;
-        return currentPos + (diff * lerpFactor);
-      });
-    });
-
-    const scalesNeedUpdate = currentScales.some((scale, index) => 
-      Math.abs(scale - targetScales[index]) > 0.002
-    );
-    const positionsNeedUpdate = currentPositions.some((pos, index) => 
-      Math.abs(pos - targetPositions[index]) > 0.1
-    );
-    
-    if (scalesNeedUpdate || positionsNeedUpdate || mouseX !== null) {
-      animationFrameRef.current = requestAnimationFrame(animateToTarget);
-    }
-  }, [mouseX, calculateTargetMagnification, calculatePositions, currentScales, currentPositions]);
-
-  // Start/stop animation loop
+  // Animation loop: one frame per render, easing scales and positions toward
+  // the magnification under the cursor. Each frame's state update re-renders,
+  // which restarts this effect with fresh values.
   useEffect(() => {
+    const tick = () => {
+      const targetScales = calculateTargetMagnification(mouseX);
+      const targetPositions = calculatePositions(targetScales);
+      const lerpFactor = mouseX !== null ? 0.2 : 0.12;
+
+      setCurrentScales(prevScales =>
+        prevScales.map((currentScale, index) => currentScale + (targetScales[index] - currentScale) * lerpFactor)
+      );
+      setCurrentPositions(prevPositions =>
+        prevPositions.map((currentPos, index) => currentPos + (targetPositions[index] - currentPos) * lerpFactor)
+      );
+
+      const scalesNeedUpdate = currentScales.some((scale, index) => Math.abs(scale - targetScales[index]) > 0.002);
+      const positionsNeedUpdate = currentPositions.some((pos, index) => Math.abs(pos - targetPositions[index]) > 0.1);
+      if (scalesNeedUpdate || positionsNeedUpdate || mouseX !== null) {
+        animationFrameRef.current = requestAnimationFrame(tick);
+      }
+    };
+
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
-    animationFrameRef.current = requestAnimationFrame(animateToTarget);
+    animationFrameRef.current = requestAnimationFrame(tick);
 
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [animateToTarget]);
+  }, [mouseX, calculateTargetMagnification, calculatePositions, currentScales, currentPositions]);
 
   // Throttled mouse movement handler
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -278,6 +271,7 @@ const MacOSDock: React.FC<MacOSDockProps> = ({
               }}
             >
               {typeof app.icon === 'string' ? (
+                // eslint-disable-next-line @next/next/no-img-element -- resized every animation frame; next/image would fetch a new size each time
                 <img
                   src={app.icon}
                   alt={app.name}

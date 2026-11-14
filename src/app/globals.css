@@ -1,8 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
-
 @custom-variant dark (&:is(.dark *));
+
+/* State hooks for components/ui/tabs.tsx. They used to come from the shadcn
+   package's stylesheet; the package was removed (14 Nov 2026) because its CLI
+   pulls in a vulnerable deepmerge and the site needs only these three. */
+@custom-variant data-active (&:where([data-state="active"], [data-active]:not([data-active="false"])));
+@custom-variant data-horizontal (&:where([data-orientation="horizontal"]));
+@custom-variant data-vertical (&:where([data-orientation="vertical"]));
 
 @theme {
   /* Editorial palette: warm off-white paper, near-black ink, one blue accent.

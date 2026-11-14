@@ -1,5 +1,3 @@
-import { Brain, Globe, Smartphone, TrendingUp, Cpu, Shield, Database, Rocket } from "lucide-react";
-
 export const projects = [
   {
     slug: "nexus-ai-engine",

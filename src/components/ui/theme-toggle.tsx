@@ -4,14 +4,12 @@ import * as React from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { motion } from "framer-motion"
+import { useHasMounted } from "@/components/navbar/NavPortal"
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
+  // The theme is only known in the browser: render nothing until then.
+  const mounted = useHasMounted()
 
   if (!mounted) return null
 
