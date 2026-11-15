@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { addressOf, classifyMail, decodeWords, parseHeaders } from "../email/inbox-parse";
-import { bareMessageId, buildMessageId, classifySmtpError } from "../email/smtp";
+import { bareMessageId, buildMessageId, classifySmtpError, describeSmtpError } from "../email/smtp";
+import { describeImapError } from "../email/inbox";
+
+describe("error descriptions never come out blank", () => {
+  it("reads the reasons out of Node's AggregateError (IPv4 + IPv6 both refused)", () => {
+    const both = new AggregateError([new Error("connect ECONNREFUSED ::1:1"), new Error("connect ECONNREFUSED 127.0.0.1:1")], "");
+    expect(describeSmtpError(both)).toBe("connect ECONNREFUSED ::1:1; connect ECONNREFUSED 127.0.0.1:1");
+    expect(describeImapError(both)).toContain("ECONNREFUSED 127.0.0.1:1");
+  });
+  it("falls back to the error code", () => {
+    expect(describeSmtpError({ code: "ESOCKET", message: "" })).toBe("Could not reach the mail server (ESOCKET)");
+  });
+});
 import { dripRoom } from "../drip";
 
 describe("dripRoom: how many new prospects may start", () => {

@@ -52,10 +52,28 @@ export function classifySmtpError(err: unknown): SmtpFailure {
   return "TEMPORARY";
 }
 
+/**
+ * A readable message for any network error. Node reports a failed connection
+ * to a host with both IPv4 and IPv6 addresses as an AggregateError whose own
+ * message is empty; the reasons are in `errors`.
+ */
+export function errorText(err: unknown, fallback: string): string {
+  const e = (typeof err === "object" && err !== null ? err : {}) as { message?: unknown; code?: unknown; errors?: unknown };
+  const own = typeof e.message === "string" ? e.message.trim() : "";
+  if (own) return own;
+  if (Array.isArray(e.errors)) {
+    const inner = e.errors
+      .map((x) => (x && typeof x === "object" && "message" in x ? String((x as { message: unknown }).message).trim() : ""))
+      .filter(Boolean);
+    if (inner.length) return [...new Set(inner)].join("; ");
+  }
+  return typeof e.code === "string" && e.code ? `${fallback} (${e.code})` : fallback;
+}
+
 export function describeSmtpError(err: unknown): string {
   const e = (typeof err === "object" && err !== null ? err : {}) as SmtpErrorShape;
   const response = typeof e.response === "string" ? e.response.trim() : "";
-  const message = typeof e.message === "string" ? e.message : "SMTP error";
+  const message = errorText(err, "Could not reach the mail server");
   if (e.code === "EAUTH") return `The mail server refused the login: check the mailbox address and password. (${response || message})`;
   return response && !message.includes(response) ? `${message}: ${response}` : message;
 }

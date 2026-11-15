@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { recordEmailEvent } from "./events";
 import { classifyMail } from "./inbox-parse";
 import { getMailboxSettings, getWatchedMailboxes, type MailboxCredentials } from "./mailbox";
+import { errorText } from "./smtp";
 
 /**
  * Reads the outreach mailbox's INBOX over IMAP for replies and bounces: the
@@ -73,7 +74,7 @@ function client(creds: MailboxCredentials): ImapFlow {
 export function describeImapError(err: unknown): string {
   const e = (typeof err === "object" && err !== null ? err : {}) as { authenticationFailed?: unknown; responseText?: unknown; message?: unknown; code?: unknown };
   if (e.authenticationFailed) return "The mail server refused the IMAP login: check the mailbox address and password.";
-  const text = typeof e.responseText === "string" && e.responseText ? e.responseText : typeof e.message === "string" ? e.message : "IMAP error";
+  const text = typeof e.responseText === "string" && e.responseText ? e.responseText : errorText(err, "Could not reach the mail server");
   return typeof e.code === "string" && !text.includes(e.code) ? `${text} (${e.code})` : text;
 }
 
