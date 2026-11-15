@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2, Play, Sparkles } from "lucide-react";
-import { addSuppression, createTask, runQueueNow, saveSenderSettings, startLeadAutomation } from "@/app/admin/actions-automation";
+import { addSuppression, createTask, moveUnsentToDripAction, runQueueNow, saveSenderSettings, startLeadAutomation, type MailboxFormState } from "@/app/admin/actions-automation";
 import { draftLeadPersonalization, savePersonalization } from "@/app/admin/actions-leads";
 import type { FormState } from "@/app/admin/actions";
 import type { OutreachSettings } from "@/lib/automation/settings";
@@ -72,12 +72,44 @@ export function SenderSettingsForm({
           <textarea id="signature" name="signature" rows={3} defaultValue={settings.signature} placeholder={"Muhammad Adnan Bashir\nBITSOL Marketing · +92 310 3175175"} className={inputClass} />
         </Field>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Emails per day, at most" htmlFor="daily-limit" hint="Across all automations, in any 24 hours. Hostinger allows 1,000 per mailbox, including mail you send by hand. Start around 20 on a new mailbox and raise it over 2–3 weeks.">
+          <Field label="Emails per day, all mailboxes together" htmlFor="daily-limit" hint="An overall cap, any 24 hours. Each mailbox also has its own limit under Sending mailboxes; Hostinger allows 1,000 per mailbox. Raise new mailboxes over 2–3 weeks.">
             <input id="daily-limit" name="dailyLimit" type="number" min={1} max={2000} defaultValue={settings.dailyLimit} className={inputClass} />
           </Field>
           <Field label="Emails per minute, at most" htmlFor="batch-limit" hint="The scheduler runs once a minute; this spaces the sends out. 1 spreads 100 emails over about two hours.">
             <input id="batch-limit" name="batchLimit" type="number" min={1} max={100} defaultValue={settings.batchLimit} className={inputClass} />
           </Field>
+        </div>
+
+        <div className="space-y-3">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Send from (Pakistan time)" htmlFor="window-start" hint="Nothing is sent outside these hours; waiting emails go out when they open.">
+              <select id="window-start" name="sendWindowStart" defaultValue={settings.sendWindowStart} className={selectClass}>
+                {Array.from({ length: 25 }, (_, h) => h).slice(0, 24).map((h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Until (Pakistan time)" htmlFor="window-end" error={errors.sendWindowEnd}>
+              <select id="window-end" name="sendWindowEnd" defaultValue={settings.sendWindowEnd} className={selectClass}>
+                {Array.from({ length: 25 }, (_, h) => h).slice(1).map((h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <label className="flex cursor-pointer items-start gap-3 text-sm">
+            <input type="checkbox" name="spreadEvenly" defaultChecked={settings.spreadEvenly} className="mt-1" />
+            <span>
+              <span className="font-semibold text-slate-900">Spread each mailbox&apos;s emails evenly over these hours</span>
+              <span className="block text-xs leading-relaxed text-slate-500">
+                100 a day between 10:00 and 22:00 is one email every 7 minutes from that mailbox, rather than a burst at the start of the day.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="space-y-3">
@@ -149,6 +181,35 @@ export function SenderSettingsForm({
         </div>
       ) : (
         <p className="text-sm text-slate-500">Only an admin can change who outreach is sent as.</p>
+      )}
+    </form>
+  );
+}
+
+// ─── Move started-but-unsent prospects to the drip ──────────────────────────
+
+/** Outside the sender form: forms cannot be nested. */
+export function MoveToDripForm({ unsent }: { unsent: number }) {
+  const [state, formAction] = useActionState<MailboxFormState>(moveUnsentToDripAction, null);
+  if (unsent === 0 && !state) return null;
+  return (
+    <form action={formAction} className="space-y-3 rounded-md border border-amber-200 bg-amber-50/60 p-4">
+      {unsent > 0 && (
+        <p className="text-sm text-slate-700">
+          <span className="font-semibold text-slate-900">{unsent.toLocaleString("en-GB")} prospects</span> were started all at once (for example on
+          import) and have not been emailed yet. Hand them to the daily drip so they start gradually and follow-ups keep priority. Nothing is sent
+          or lost; their place in the list is kept.
+        </p>
+      )}
+      {unsent > 0 && (
+        <SubmitButton variant="secondary" pendingText="Moving…">
+          Move them to the daily drip
+        </SubmitButton>
+      )}
+      {state && (
+        <p role="status" className={cn("text-sm font-semibold", state.ok ? "text-emerald-700" : "text-red-700")}>
+          {state.ok ? state.notes?.[0] : state.error}
+        </p>
       )}
     </form>
   );

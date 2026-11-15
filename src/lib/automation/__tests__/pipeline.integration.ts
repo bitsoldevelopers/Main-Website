@@ -111,6 +111,9 @@ describe.runIf(local)("import and automation, against the local database", () =>
       companyAddress: "1 Test Road, Lahore",
       dailyLimit: 2000,
       batchLimit: 100,
+      // Any hour: the tests must not depend on the time of day they run.
+      sendWindowStart: 0,
+      sendWindowEnd: 24,
     });
 
     const sequence = await prisma.emailSequence.create({ data: { name: `${RUN} sequence` } });

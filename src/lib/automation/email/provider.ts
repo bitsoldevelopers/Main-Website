@@ -1,6 +1,5 @@
 import { Resend } from "resend";
-import { getOutreachSettings } from "../settings";
-import { getMailboxConfig, getMailboxCredentials, mailboxProblems } from "./mailbox";
+import { getMailboxSettings, getSendingMailboxes, mailboxProblems } from "./mailbox";
 import { createSmtpProvider } from "./smtp";
 
 /**
@@ -106,13 +105,12 @@ export function isTestMode(): boolean {
 }
 
 /**
- * Who delivers outreach right now: test mode, the mailbox over SMTP, or
- * Resend, as chosen under Lead Automation → Settings → Sending mailbox.
+ * Who delivers outreach right now: test mode, the connected mailboxes over
+ * SMTP, or Resend, as chosen under Lead Automation → Settings.
  */
 export async function getEmailProvider(): Promise<EmailProvider> {
   if (isTestMode()) return testProvider;
-  const config = await getMailboxConfig();
-  if (config.transport !== "smtp") return resendProvider;
-  const settings = await getOutreachSettings();
-  return createSmtpProvider(await getMailboxCredentials(), mailboxProblems(config, settings.fromEmail));
+  const settings = await getMailboxSettings();
+  if (settings.transport !== "smtp") return resendProvider;
+  return createSmtpProvider(await getSendingMailboxes(), mailboxProblems(settings));
 }

@@ -24,9 +24,10 @@ const { toCsv, parseCsv } = await import("../sources/csv");
 const { DEFAULT_IMPORT_SETTINGS } = await import("../sources/types");
 const { runDueJobs } = await import("../worker");
 const { handleInboundMail } = await import("../email/inbox");
-const { saveMailboxConfig } = await import("../email/mailbox");
+const { saveMailbox, setTransport } = await import("../email/mailbox");
 const { clearSmtpPause, smtpPause } = await import("../email/smtp");
-const { DRIP_ACTOR, runDrip } = await import("../drip");
+const { windowState } = await import("../email/rotation");
+const { DRIP_ACTOR, moveUnsentToDrip, runDrip } = await import("../drip");
 const { suppress } = await import("../suppression");
 
 const RUN = `mb${Date.now().toString(36)}`;
@@ -79,10 +80,21 @@ describe.runIf(local)("outreach mailbox: replies and bounces from the inbox, aga
   beforeAll(async () => {
     settingsBefore = await getOutreachSettings();
     mailboxRowsBefore = await prisma.siteSetting.findMany({
-      where: { OR: [{ key: { startsWith: "outreach.mailbox." } }, { key: "outreach.drip.cursor" }] },
+      where: { OR: [{ key: { startsWith: "outreach.mailbox" } }, { key: "outreach.drip.cursor" }] },
       select: { key: true, value: true },
     });
-    await saveOutreachSettings({ fromName: "BITSOL Test", fromEmail: OWN, replyTo: "", companyAddress: "1 Test Road, Lahore", dailyLimit: 2000, batchLimit: 100 });
+    await saveOutreachSettings({
+      fromName: "BITSOL Test",
+      fromEmail: OWN,
+      replyTo: "",
+      companyAddress: "1 Test Road, Lahore",
+      dailyLimit: 2000,
+      batchLimit: 100,
+      // Any hour, no spacing: the tests must not depend on the time of day or on timing.
+      sendWindowStart: 0,
+      sendWindowEnd: 24,
+      spreadEvenly: false,
+    });
 
     const sequence = await prisma.emailSequence.create({ data: { name: `${RUN} sequence` } });
     sequenceId = sequence.id;
@@ -128,7 +140,7 @@ describe.runIf(local)("outreach mailbox: replies and bounces from the inbox, aga
     if (sequenceId) await prisma.emailSequence.deleteMany({ where: { id: sequenceId } });
     await prisma.emailTemplate.deleteMany({ where: { id: { in: templateIds } } });
     await saveOutreachSettings(settingsBefore);
-    await prisma.siteSetting.deleteMany({ where: { OR: [{ key: { startsWith: "outreach.mailbox." } }, { key: "outreach.drip.cursor" }] } });
+    await prisma.siteSetting.deleteMany({ where: { OR: [{ key: { startsWith: "outreach.mailbox" } }, { key: "outreach.drip.cursor" }] } });
     if (mailboxRowsBefore.length) await prisma.siteSetting.createMany({ data: mailboxRowsBefore });
     await prisma.$disconnect();
   });
@@ -221,7 +233,6 @@ describe.runIf(local)("outreach mailbox: replies and bounces from the inbox, aga
 
   it("the daily drip starts imported prospects a few at a time, passing over one it cannot email", async () => {
     const names = ["Dripa", "Dripb", "Dripc", "Dripd", "Dripe"];
-    const before = new Date(Date.now() - 1000);
     const importId = await queueCsvImport({
       filename: `${RUN}-drip.csv`,
       table: parseCsv(
@@ -236,6 +247,8 @@ describe.runIf(local)("outreach mailbox: replies and bounces from the inbox, aga
     imports.push(importId);
     await drain();
     // Only this test's prospects: start the list just before them.
+    const firstOfTest = await prisma.lead.findFirstOrThrow({ where: { company: COMPANY, firstName: { in: names } }, orderBy: { createdAt: "asc" }, select: { createdAt: true } });
+    const before = new Date(firstOfTest.createdAt.getTime() - 1);
     await prisma.siteSetting.upsert({
       where: { key: "outreach.drip.cursor" },
       update: { value: JSON.stringify({ createdAt: before.toISOString(), id: "" }) },
@@ -261,24 +274,105 @@ describe.runIf(local)("outreach mailbox: replies and bounces from the inbox, aga
     await saveOutreachSettings({ dripPerDay: 0 });
   });
 
-  it("a mailbox that refuses the connection pauses sending; it fails no lead", async () => {
-    await saveMailboxConfig({ transport: "smtp", smtpHost: "127.0.0.1", smtpPort: 1, user: OWN, password: "wrong", imapHost: "127.0.0.1", imapPort: 1, watchInbox: false });
-    process.env.OUTREACH_EMAIL_MODE = "";
+  /** Imports prospects with these first names (one CSV), without starting them. */
+  async function importProspects(names: string[]) {
+    const importId = await queueCsvImport({
+      filename: `${RUN}-${names[0]}.csv`,
+      table: parseCsv(
+        toCsv(
+          HEADERS,
+          names.map((name) => HEADERS.map((header) => ({ "First Name": name, "Last Name": "Test", "Company Name": COMPANY, "Email 1": `${name.toLowerCase()}@${DOMAIN}` })[header] ?? ""))
+        )
+      ),
+      settings: { ...DEFAULT_IMPORT_SETTINGS, mapping, checkDomains: false },
+      actor: "Integration test",
+    });
+    imports.push(importId);
+    await drain();
+  }
+
+  it("outside the sending hours nothing is sent, and due steps wait for the window to open", async () => {
+    await importProspects(["Nighta"]);
+    // A one-hour window that is not now (Pakistan time is UTC+5).
+    const hourNow = (new Date().getUTCHours() + 5) % 24;
+    const start = (hourNow + 1) % 24;
+    const window = { start, end: start + 1 };
+    await saveOutreachSettings({ sendWindowStart: window.start, sendWindowEnd: window.end });
     try {
-      const { id } = await lead("Sana");
+      const { id } = await lead("Nighta");
       const enrolled = await enrollLead({ leadId: id, automationId, actor: "Integration test" });
       expect(enrolled.ok).toBe(true);
       await drain();
 
-      const sana = await lead("Sana");
+      const nighta = await lead("Nighta");
+      expect(nighta.messages).toHaveLength(0);
+      expect(nighta.runs[0].status).toBe("ACTIVE");
+      const job = await prisma.automationJob.findFirstOrThrow({ where: { type: "RUN_STEP", refId: enrolled.ok ? enrolled.runId : "", status: "PENDING" } });
+      expect(job.lastError).toMatch(/Outside sending hours/);
+      expect(job.runAt.toISOString()).toBe(windowState(new Date(), window).opensAt.toISOString());
+    } finally {
+      await saveOutreachSettings({ sendWindowStart: 0, sendWindowEnd: 24 });
+    }
+  });
+
+  it("prospects started but never emailed go back to the daily drip; nothing else changes", async () => {
+    await importProspects(["Movea", "Moveb", "Movec"]);
+    const runIds: string[] = [];
+    for (const name of ["Movea", "Moveb", "Movec"]) {
+      const enrolled = await enrollLead({ leadId: (await lead(name)).id, automationId, actor: "Integration test" });
+      if (enrolled.ok) runIds.push(enrolled.runId);
+    }
+    expect(runIds).toHaveLength(3);
+    // Rina already received email 1: her sequence must stay as it is.
+    const rinaBefore = await lead("Rina");
+
+    const moved = await moveUnsentToDrip();
+    expect(moved).toBeGreaterThanOrEqual(3);
+    for (const name of ["Movea", "Moveb", "Movec"]) {
+      const l = await lead(name);
+      expect(l.runs).toHaveLength(0);
+      expect(l.status).toBe("READY_FOR_OUTREACH");
+    }
+    expect(await prisma.automationJob.count({ where: { refId: { in: runIds } } })).toBe(0);
+    expect((await lead("Rina")).runs.map((r) => r.id)).toEqual(rinaBefore.runs.map((r) => r.id));
+
+    // And the drip can start them again.
+    // Only this test's prospects may start (the move resets the drip's place in the list).
+    const firstMoved = await prisma.lead.findFirstOrThrow({ where: { company: COMPANY, firstName: { in: ["Movea", "Moveb", "Movec"] } }, orderBy: { createdAt: "asc" }, select: { createdAt: true } });
+    const cursor = JSON.stringify({ createdAt: new Date(firstMoved.createdAt.getTime() - 1).toISOString(), id: "" });
+    await prisma.siteSetting.upsert({ where: { key: "outreach.drip.cursor" }, update: { value: cursor }, create: { key: "outreach.drip.cursor", value: cursor } });
+    // Room for two more than the drip already started today (the drip test above started some).
+    const startedToday = await prisma.automationRun.count({ where: { startedBy: DRIP_ACTOR, startedAt: { gte: new Date(Date.now() - 86_400_000) } } });
+    await saveOutreachSettings({ dripPerDay: startedToday + 2, dripAutomationId: automationId });
+    expect((await runDrip()).started).toBe(2);
+    await drain();
+    await saveOutreachSettings({ dripPerDay: 0 });
+  });
+
+  it("a mailbox that refuses the connection pauses sending; it fails no lead", async () => {
+    await importProspects(["Refusa"]);
+    await setTransport("smtp");
+    await saveMailbox({ user: OWN, password: "wrong", smtpHost: "127.0.0.1", smtpPort: 1, imapHost: "127.0.0.1", imapPort: 1, watchInbox: false, dailyLimit: 100, enabled: true, fromName: "" });
+    process.env.OUTREACH_EMAIL_MODE = "";
+    try {
+      const { id } = await lead("Refusa");
+      const enrolled = await enrollLead({ leadId: id, automationId, actor: "Integration test" });
+      expect(enrolled.ok).toBe(true);
+      await drain();
+
+      const sana = await lead("Refusa");
       expect(sana.runs[0].status).toBe("ACTIVE");
       expect(sana.status).not.toBe("BOUNCED");
       expect(sana.messages).toHaveLength(1);
       expect(sana.messages[0]).toMatchObject({ status: "FAILED", provider: "smtp" });
-      expect(smtpPause()).not.toBeNull();
+      expect(smtpPause(OWN)).not.toBeNull();
       const job = await prisma.automationJob.findFirstOrThrow({ where: { type: "RUN_STEP", refId: enrolled.ok ? enrolled.runId : "", status: "PENDING" } });
       expect(job.lastError).toMatch(/paused/i);
-      expect(job.runAt.getTime()).toBeGreaterThan(Date.now() + 10 * 60_000);
+      // A first email retries soon (another mailbox could take it); the mailbox itself stays paused.
+      expect(job.runAt.getTime()).toBeGreaterThan(Date.now());
+      expect(smtpPause(OWN)!.until.getTime()).toBeGreaterThan(Date.now() + 10 * 60_000);
+      // The email was attempted from the connected mailbox, not from the sender address setting.
+      expect(sana.messages[0].fromEmail).toContain(OWN);
     } finally {
       process.env.OUTREACH_EMAIL_MODE = "test";
       clearSmtpPause();

@@ -1,6 +1,6 @@
 import { createTransport } from "nodemailer";
 import type { EmailProvider, SendResult } from "./provider";
-import type { MailboxCredentials } from "./mailbox";
+import { addressOf, type MailboxCredentials } from "./mailbox";
 
 /**
  * Outreach over SMTP from a real mailbox (Hostinger Business email). One
@@ -74,27 +74,40 @@ export function bareMessageId(id: string): string {
 // ─── Pause after a setup failure ────────────────────────────────────────────
 //
 // A wrong password fails every email the same way, and a mail server that sees
-// a burst of failed logins may lock the mailbox. After one setup failure no
-// email is tried for a while; saving the mailbox settings lifts the pause.
+// a burst of failed logins may lock the mailbox. After one setup failure that
+// mailbox is left alone for a while (the others keep sending); saving the
+// mailbox settings lifts the pause.
 
 const SETUP_PAUSE_MS = 15 * 60_000;
 
-const pause = globalThis as unknown as { __bitsolSmtpPause?: { until: number; error: string } };
+type PauseState = Map<string, { until: number; error: string }>;
+const pause = globalThis as unknown as { __bitsolSmtpPauses?: PauseState };
+function pauses(): PauseState {
+  pause.__bitsolSmtpPauses ??= new Map();
+  return pause.__bitsolSmtpPauses;
+}
 
-export function pauseSmtp(error: string, ms = SETUP_PAUSE_MS): Date {
+export function pauseSmtp(address: string, error: string, ms = SETUP_PAUSE_MS): Date {
   const until = Date.now() + ms;
-  pause.__bitsolSmtpPause = { until, error };
+  pauses().set(address.toLowerCase(), { until, error });
   return new Date(until);
 }
 
-export function smtpPause(now = Date.now()): { until: Date; error: string } | null {
-  const current = pause.__bitsolSmtpPause;
+/** The pause on one mailbox, if any. */
+export function smtpPause(address: string, now = Date.now()): { until: Date; error: string } | null {
+  const current = pauses().get(address.toLowerCase());
   if (!current || current.until <= now) return null;
   return { until: new Date(current.until), error: current.error };
 }
 
-export function clearSmtpPause(): void {
-  pause.__bitsolSmtpPause = undefined;
+/** Every mailbox currently paused. */
+export function smtpPauses(now = Date.now()): { address: string; until: Date; error: string }[] {
+  return [...pauses()].filter(([, p]) => p.until > now).map(([address, p]) => ({ address, until: new Date(p.until), error: p.error }));
+}
+
+export function clearSmtpPause(address?: string): void {
+  if (address) pauses().delete(address.toLowerCase());
+  else pauses().clear();
 }
 
 function transportFor(creds: MailboxCredentials) {
@@ -124,14 +137,20 @@ export async function verifySmtp(creds: MailboxCredentials): Promise<{ ok: true 
   }
 }
 
-export function createSmtpProvider(creds: MailboxCredentials | null, problems: string[]): EmailProvider {
+/**
+ * Sends through whichever connected mailbox the From address names: the
+ * engine picks the mailbox (rotation.ts), the provider only logs in to it.
+ */
+export function createSmtpProvider(mailboxes: MailboxCredentials[], problems: string[]): EmailProvider {
   return {
     name: "smtp",
     delivers: true,
-    isConfigured: () => creds !== null && problems.length === 0,
-    setupHint: problems[0] ?? "Enter the mailbox address and password under Lead Automation → Settings → Sending mailbox.",
+    isConfigured: () => mailboxes.length > 0 && problems.length === 0,
+    setupHint: problems[0] ?? "Connect a mailbox under Lead Automation → Settings → Sending mailboxes.",
     async send(message): Promise<SendResult> {
-      if (!creds) return { ok: false, error: "The mailbox is not set up", retryable: false, setup: true };
+      const address = addressOf(message.from);
+      const creds = mailboxes.find((m) => m.user === address);
+      if (!creds) return { ok: false, error: `${address || "The sender"} is not a connected, enabled mailbox`, retryable: false, setup: true };
       const messageId = buildMessageId(message.idempotencyKey, message.from);
       const transport = transportFor(creds);
       try {

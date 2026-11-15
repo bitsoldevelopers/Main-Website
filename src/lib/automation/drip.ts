@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { PROSPECT_SUBJECT } from "@/lib/admin/leads";
 import { enrollLead, type EnrollBlock } from "./engine";
 import { getEmailProvider } from "./email/provider";
+import { getSendingMailboxes } from "./email/mailbox";
+import { windowState } from "./email/rotation";
 import { smtpPause } from "./email/smtp";
 import { getOutreachSettings, senderProblems } from "./settings";
 
@@ -79,14 +81,17 @@ export interface DripStatus {
   waiting: number;
   automationName: string | null;
   automationActive: boolean;
+  /** Prospects whose sequence was started but has not sent anything yet. */
+  unsent: number;
 }
 
 export async function getDripStatus(): Promise<DripStatus> {
   const settings = await getOutreachSettings();
-  const [startedLastDay, waiting, automation] = await Promise.all([
+  const [startedLastDay, waiting, automation, unsent] = await Promise.all([
     prisma.automationRun.count({ where: { startedBy: DRIP_ACTOR, startedAt: { gte: new Date(Date.now() - DAY_MS) } } }),
     prisma.lead.count({ where: waitingWhere(await readCursor()) }),
     settings.dripAutomationId ? prisma.automation.findUnique({ where: { id: settings.dripAutomationId }, select: { name: true, status: true } }) : null,
+    prisma.automationRun.count({ where: UNSENT_RUN }),
   ]);
   return {
     enabled: settings.dripPerDay > 0 && Boolean(settings.dripAutomationId),
@@ -95,7 +100,42 @@ export async function getDripStatus(): Promise<DripStatus> {
     waiting,
     automationName: automation?.name ?? null,
     automationActive: automation?.status === "ACTIVE",
+    unsent,
   };
+}
+
+/** A prospect's sequence that was started (for example by an import) but has sent nothing yet. */
+const UNSENT_RUN = { status: { in: ["ACTIVE", "PAUSED"] }, emailsSent: 0, lead: { subject: PROSPECT_SUBJECT } };
+
+/**
+ * Hands started-but-unsent prospects back to the drip: their waiting jobs and
+ * sequence records are removed and they become ready for outreach again, so
+ * the drip starts them a few a day. Nothing was sent to them, and anything
+ * that refers to a removed sequence keeps its row (the reference becomes
+ * empty). Returns how many prospects moved.
+ */
+export async function moveUnsentToDrip(): Promise<number> {
+  let moved = 0;
+  for (;;) {
+    const runs = await prisma.automationRun.findMany({ where: UNSENT_RUN, select: { id: true, leadId: true }, take: 500 });
+    if (runs.length === 0) break;
+    const runIds = runs.map((r) => r.id);
+    const leadIds = runs.map((r) => r.leadId);
+    await prisma.$transaction([
+      prisma.automationJob.deleteMany({ where: { type: "RUN_STEP", refId: { in: runIds } } }),
+      prisma.followUp.deleteMany({ where: { runId: { in: runIds }, status: "SCHEDULED" } }),
+      // emailsSent is checked again: a send that happened meanwhile keeps its sequence.
+      prisma.automationRun.deleteMany({ where: { id: { in: runIds }, emailsSent: 0 } }),
+      prisma.lead.updateMany({
+        where: { id: { in: leadIds }, status: { in: ["EMAIL_QUEUED", "PAUSED", "IMPORTED", "NEW"] } },
+        data: { status: "READY_FOR_OUTREACH", nextFollowUpAt: null },
+      }),
+    ]);
+    moved += runs.length;
+  }
+  // Work through the list from its start again; prospects with a sequence are skipped.
+  await prisma.siteSetting.deleteMany({ where: { key: CURSOR_KEY } });
+  return moved;
 }
 
 /**
@@ -116,7 +156,16 @@ export async function runDrip(now = new Date()): Promise<{ started: number; note
   // Starting prospects that cannot be emailed only builds a backlog.
   const provider = await getEmailProvider();
   if (!provider.isConfigured() || senderProblems(settings).length > 0) return { started: 0, note: "Sending is not set up" };
-  if (provider.name === "smtp" && smtpPause(now.getTime())) return { started: 0, note: "Sending is paused" };
+  if (!windowState(now, { start: settings.sendWindowStart, end: settings.sendWindowEnd }).open) {
+    return { started: 0, note: "Outside sending hours" };
+  }
+  // Over SMTP a day holds what the usable mailboxes can send together.
+  let capacity = settings.dailyLimit;
+  if (provider.name === "smtp") {
+    const usable = (await getSendingMailboxes()).filter((m) => !smtpPause(m.user, now.getTime()));
+    if (usable.length === 0) return { started: 0, note: "No mailbox can send right now" };
+    capacity = Math.min(capacity, usable.reduce((total, m) => total + m.dailyLimit, 0));
+  }
 
   const dayAgo = new Date(now.getTime() - DAY_MS);
   const [startedLastDay, sentLastDay, sendsDueSoon] = await Promise.all([
@@ -125,7 +174,7 @@ export async function runDrip(now = new Date()): Promise<{ started: number; note
     // Every waiting step job of a running sequence: most of them are a follow-up email.
     prisma.automationJob.count({ where: { type: "RUN_STEP", status: { in: ["PENDING", "RUNNING"] }, runAt: { lt: new Date(now.getTime() + DAY_MS) } } }),
   ]);
-  let room = dripRoom({ perDay: settings.dripPerDay, dailyLimit: settings.dailyLimit, startedLastDay, sentLastDay, sendsDueSoon });
+  let room = dripRoom({ perDay: settings.dripPerDay, dailyLimit: capacity, startedLastDay, sentLastDay, sendsDueSoon });
   if (room === 0) return { started: 0, note: "No room today" };
 
   let cursor = await readCursor();

@@ -2,7 +2,7 @@ import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/prisma";
 import { recordEmailEvent } from "./events";
 import { classifyMail } from "./inbox-parse";
-import { getMailboxConfig, getMailboxCredentials, type MailboxCredentials } from "./mailbox";
+import { getMailboxSettings, getWatchedMailboxes, type MailboxCredentials } from "./mailbox";
 
 /**
  * Reads the outreach mailbox's INBOX over IMAP for replies and bounces: the
@@ -15,11 +15,14 @@ import { getMailboxConfig, getMailboxCredentials, type MailboxCredentials } from
  * and every event is stored once, so reading a message twice changes nothing.
  */
 
-const STATE = {
-  validity: "outreach.inbox.uidValidity",
-  lastUid: "outreach.inbox.lastUid",
-  report: "outreach.inbox.lastCheck",
-} as const;
+const REPORT_KEY = "outreach.inbox.lastCheck";
+
+/** Where reading got to in one mailbox. The first mailbox keeps the keys of the single-mailbox version. */
+function stateKeys(mailboxId: string): { validity: string; lastUid: string } {
+  return mailboxId === "primary"
+    ? { validity: "outreach.inbox.uidValidity", lastUid: "outreach.inbox.lastUid" }
+    : { validity: `outreach.inbox.${mailboxId}.uidValidity`, lastUid: `outreach.inbox.${mailboxId}.lastUid` };
+}
 
 const CHECK_EVERY_MS = 5 * 60_000;
 /** After a failure (wrong password…): repeated failed logins can lock a mailbox. */
@@ -39,6 +42,8 @@ export interface InboxReport {
   replies: number;
   bounces: number;
   autoReplies: number;
+  /** One line per mailbox read in this pass. */
+  mailboxes?: { user: string; ok: boolean; error?: string; scanned: number; replies: number; bounces: number }[];
 }
 
 const state = globalThis as unknown as {
@@ -86,11 +91,12 @@ export async function verifyImap(creds: MailboxCredentials): Promise<{ ok: true;
   }
 }
 
-async function readState(): Promise<{ validity: string; lastUid: number }> {
-  const rows = await prisma.siteSetting.findMany({ where: { key: { in: [STATE.validity, STATE.lastUid] } } });
+async function readState(mailboxId: string): Promise<{ validity: string; lastUid: number }> {
+  const keys = stateKeys(mailboxId);
+  const rows = await prisma.siteSetting.findMany({ where: { key: { in: [keys.validity, keys.lastUid] } } });
   const map = new Map(rows.map((row) => [row.key, row.value]));
-  const lastUid = Number.parseInt(map.get(STATE.lastUid) ?? "", 10);
-  return { validity: map.get(STATE.validity) ?? "", lastUid: Number.isFinite(lastUid) ? lastUid : 0 };
+  const lastUid = Number.parseInt(map.get(keys.lastUid) ?? "", 10);
+  return { validity: map.get(keys.validity) ?? "", lastUid: Number.isFinite(lastUid) ? lastUid : 0 };
 }
 
 async function writeSetting(key: string, value: string): Promise<void> {
@@ -98,7 +104,7 @@ async function writeSetting(key: string, value: string): Promise<void> {
 }
 
 export async function lastInboxReport(): Promise<InboxReport | null> {
-  const row = await prisma.siteSetting.findUnique({ where: { key: STATE.report } });
+  const row = await prisma.siteSetting.findUnique({ where: { key: REPORT_KEY } });
   if (!row) return null;
   try {
     return JSON.parse(row.value) as InboxReport;
@@ -145,9 +151,14 @@ export type InboundOutcome = "REPLY" | "BOUNCE" | "AUTO_REPLY" | "IGNORED";
  * What one message in the inbox means for the CRM, recorded once. `eventKey`
  * identifies the message when it has no Message-ID of its own.
  */
-export async function handleInboundMail(raw: string, meta: { ownAddress: string; eventKey: string; receivedAt: Date }): Promise<InboundOutcome> {
+export async function handleInboundMail(
+  raw: string,
+  meta: { ownAddress: string | string[]; eventKey: string; receivedAt: Date }
+): Promise<InboundOutcome> {
   const mail = classifyMail(raw);
-  if (mail.from === meta.ownAddress.toLowerCase()) return "IGNORED";
+  // Mail between our own mailboxes (tests, warm-up) is never a lead's reply.
+  const own = (Array.isArray(meta.ownAddress) ? meta.ownAddress : [meta.ownAddress]).map((a) => a.toLowerCase());
+  if (own.includes(mail.from)) return "IGNORED";
   if (mail.kind === "AUTO_REPLY") return "AUTO_REPLY";
   const providerEventId = `imap:${mail.messageId || meta.eventKey}`;
 
@@ -179,9 +190,8 @@ export async function handleInboundMail(raw: string, meta: { ownAddress: string;
   return result === "RECORDED" && bounce.permanent ? "BOUNCE" : "IGNORED";
 }
 
-async function pass(creds: MailboxCredentials): Promise<InboxReport> {
+async function pass(creds: MailboxCredentials, ownAddresses: string[]): Promise<InboxReport> {
   const report: InboxReport = { at: new Date().toISOString(), ok: true, scanned: 0, replies: 0, bounces: 0, autoReplies: 0 };
-  const own = creds.user.toLowerCase();
   const imap = client(creds);
   try {
     await imap.connect();
@@ -190,7 +200,7 @@ async function pass(creds: MailboxCredentials): Promise<InboxReport> {
       const mailbox = imap.mailbox;
       if (!mailbox) throw new Error("Could not open INBOX");
       const validity = String(mailbox.uidValidity);
-      const saved = await readState();
+      const saved = await readState(creds.id);
 
       let uids: number[];
       if (saved.validity === validity && saved.lastUid > 0) {
@@ -210,7 +220,7 @@ async function pass(creds: MailboxCredentials): Promise<InboxReport> {
           highest = Math.max(highest, msg.uid);
           if (!msg.source) continue;
           const outcome = await handleInboundMail(msg.source.toString("utf8"), {
-            ownAddress: own,
+            ownAddress: ownAddresses,
             eventKey: `${validity}:${msg.uid}`,
             receivedAt: msg.internalDate ? new Date(msg.internalDate) : new Date(),
           });
@@ -223,8 +233,9 @@ async function pass(creds: MailboxCredentials): Promise<InboxReport> {
         highest = Math.max(0, mailbox.uidNext - 1);
       }
 
-      await writeSetting(STATE.validity, validity);
-      await writeSetting(STATE.lastUid, String(highest));
+      const keys = stateKeys(creds.id);
+      await writeSetting(keys.validity, validity);
+      await writeSetting(keys.lastUid, String(highest));
     } finally {
       lock.release();
     }
@@ -263,16 +274,39 @@ function withTimeout(promise: Promise<InboxReport>): Promise<InboxReport> {
  */
 export async function checkInboxNow(): Promise<InboxReport | null> {
   if (state.__bitsolInboxRunning) return state.__bitsolInboxRunning;
-  const config = await getMailboxConfig();
-  if (config.transport !== "smtp" || !config.watchInbox) return null;
-  const creds = await getMailboxCredentials();
-  if (!creds) return null;
+  const settings = await getMailboxSettings();
+  if (settings.transport !== "smtp") return null;
+  const watched = await getWatchedMailboxes();
+  if (watched.length === 0) return null;
+  const ownAddresses = settings.mailboxes.map((m) => m.user);
 
-  const run = withTimeout(pass(creds)).then(async (report) => {
-    state.__bitsolInboxNextAt = Date.now() + (report.ok ? CHECK_EVERY_MS : RETRY_AFTER_ERROR_MS);
-    await writeSetting(STATE.report, JSON.stringify(report)).catch(() => undefined);
-    return report;
-  });
+  const run = (async (): Promise<InboxReport> => {
+    // One mailbox after another: a few seconds each, and no burst of logins.
+    const reports: { user: string; report: InboxReport }[] = [];
+    for (const creds of watched) reports.push({ user: creds.user, report: await withTimeout(pass(creds, ownAddresses)) });
+    const failed = reports.filter((r) => !r.report.ok);
+    const total: InboxReport = {
+      at: new Date().toISOString(),
+      ok: failed.length === 0,
+      ...(failed.length ? { error: failed.map((r) => `${r.user}: ${r.report.error}`).join("; ") } : {}),
+      scanned: reports.reduce((n, r) => n + r.report.scanned, 0),
+      replies: reports.reduce((n, r) => n + r.report.replies, 0),
+      bounces: reports.reduce((n, r) => n + r.report.bounces, 0),
+      autoReplies: reports.reduce((n, r) => n + r.report.autoReplies, 0),
+      mailboxes: reports.map((r) => ({
+        user: r.user,
+        ok: r.report.ok,
+        ...(r.report.error ? { error: r.report.error } : {}),
+        scanned: r.report.scanned,
+        replies: r.report.replies,
+        bounces: r.report.bounces,
+      })),
+    };
+    // A failing mailbox slows the next check (failed logins can lock it); the others are read again then.
+    state.__bitsolInboxNextAt = Date.now() + (total.ok ? CHECK_EVERY_MS : RETRY_AFTER_ERROR_MS);
+    await writeSetting(REPORT_KEY, JSON.stringify(total)).catch(() => undefined);
+    return total;
+  })();
   state.__bitsolInboxRunning = run;
   try {
     return await run;

@@ -8,11 +8,13 @@ import {
 } from "./conditions";
 import { unsubscribeToken } from "./crypto";
 import { getEmailProvider } from "./email/provider";
+import { getSendingMailboxes } from "./email/mailbox";
+import { describeWindow, mailboxUsage, pickMailbox, spacingMs, stickyAddress, windowState } from "./email/rotation";
 import { pauseSmtp, smtpPause } from "./email/smtp";
 import { composeEmail, renderTemplate, templateValues } from "./email/render";
 import { refreshOutreachEmail } from "./lead-contacts";
 import { normalizeEmail } from "./normalize";
-import { RetryableError, cancelJobs, enqueueJob } from "./queue";
+import { RetryableError, cancelJobs, deferDueSteps, enqueueJob } from "./queue";
 import { getOutreachSettings, senderProblems } from "./settings";
 import { suppress } from "./suppression";
 import { recordActivities, recordActivity } from "./timeline";
@@ -536,18 +538,50 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
   if (!provider.isConfigured()) {
     return { kind: "defer", until: inAnHour, note: `Email provider is not configured. ${provider.setupHint}` };
   }
-  const paused = provider.name === "smtp" ? smtpPause(now.getTime()) : null;
-  if (paused) return { kind: "defer", until: paused.until, note: `Sending is paused after a mailbox problem: ${paused.error}` };
   const settings = await getOutreachSettings();
   const problems = senderProblems(settings);
   if (problems.length > 0) return { kind: "defer", until: inAnHour, note: `Sender is not set up: ${problems[0]}` };
 
+  // Sending hours. Outside them every due step waits for the window, in one update.
+  const sendWindow = { start: settings.sendWindowStart, end: settings.sendWindowEnd };
+  const win = windowState(now, sendWindow);
+  if (!win.open) {
+    const note = `Outside sending hours (${describeWindow(sendWindow)} Pakistan time)`;
+    await deferDueSteps(win.opensAt, note, now);
+    return { kind: "defer", until: win.opensAt, note };
+  }
+
   if (budget.sendsLeft <= 0) {
     return { kind: "defer", until: new Date(now.getTime() + 60_000), note: "Send limit for this scheduler run reached" };
   }
-  const sentLastDay = await prisma.emailMessage.count({ where: { sentAt: { gte: new Date(now.getTime() - DAY_MS) } } });
+  const dayAgo = new Date(now.getTime() - DAY_MS);
+  const sentLastDay = await prisma.emailMessage.count({ where: { sentAt: { gte: dayAgo } } });
   if (sentLastDay >= settings.dailyLimit) {
-    return { kind: "defer", until: new Date(now.getTime() + 30 * 60_000), note: `Daily limit of ${settings.dailyLimit} emails reached` };
+    // Room comes back when the oldest send of the last 24 hours ages out.
+    const oldest = await prisma.emailMessage.findFirst({ where: { sentAt: { gte: dayAgo } }, orderBy: { sentAt: "asc" }, select: { sentAt: true } });
+    const until = new Date(Math.max(now.getTime() + 60_000, (oldest?.sentAt?.getTime() ?? now.getTime()) + DAY_MS));
+    const note = `Daily limit of ${settings.dailyLimit} emails reached`;
+    await deferDueSteps(until, note, now);
+    return { kind: "defer", until, note };
+  }
+
+  // Which mailbox: the one that emailed this lead before, else the least used with room.
+  let senderAddress = settings.fromEmail;
+  let senderName = settings.fromName;
+  if (provider.name === "smtp") {
+    const choice = pickMailbox({
+      mailboxes: (await getSendingMailboxes()).filter((m) => !smtpPause(m.user, now.getTime())),
+      usage: await mailboxUsage(now),
+      sticky: await stickyAddress(run.id),
+      now,
+      gapFor: (m) => spacingMs(win.minutes, m.dailyLimit, settings.spreadEvenly),
+    });
+    if (choice.kind === "wait") {
+      if (choice.scope === "all") await deferDueSteps(choice.until, choice.note, now);
+      return { kind: "defer", until: choice.until, note: choice.note };
+    }
+    senderAddress = choice.mailbox.user;
+    senderName = choice.mailbox.fromName || settings.fromName;
   }
 
   // The address is chosen now, not when the run started: it may have bounced
@@ -569,7 +603,7 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
     body: template.body,
     ctaLabel: template.ctaLabel,
     ctaUrl: template.ctaUrl,
-    values: templateValues(run.lead, { outreachEmail: toEmail, senderName: settings.fromName, senderCompany: settings.companyName }),
+    values: templateValues(run.lead, { outreachEmail: toEmail, senderName, senderCompany: settings.companyName }),
     design: settings.emailDesign,
     services: settings.showServices ? { siteUrl: siteUrl() } : null,
     footer: {
@@ -584,8 +618,9 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
     return { kind: "stopped", note: "Empty subject" };
   }
 
-  const from = formatFrom(settings.fromName, settings.fromEmail);
-  const replyTo = settings.replyTo || settings.fromEmail;
+  const from = formatFrom(senderName, senderAddress);
+  // Replies go to the mailbox that sent, unless one reply-to address is set for all.
+  const replyTo = settings.replyTo || senderAddress;
   const content = {
     templateId: template.id,
     toEmail,
@@ -624,10 +659,15 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
     await prisma.emailMessage.update({ where: { id: message.id }, data: { status: "FAILED", error: result.error.slice(0, 2000) } });
     await prisma.emailEvent.create({ data: { messageId: message.id, leadId: run.leadId, type: "FAILED", payload: { error: result.error } } });
     if (result.setup) {
-      // Not this lead's fault: hold every send until the mailbox is fixed.
+      // Not this lead's fault. Over SMTP only that mailbox is paused and the
+      // others keep sending; a first email can move to another mailbox.
+      if (provider.name === "smtp") {
+        const until = pauseSmtp(senderAddress, result.error);
+        const retryAt = run.emailsSent === 0 ? new Date(now.getTime() + 60_000) : until;
+        return { kind: "defer", until: retryAt, note: `Mailbox problem on ${senderAddress}, paused: ${result.error}` };
+      }
       budget.sendsLeft = 0;
-      const until = pauseSmtp(result.error);
-      return { kind: "defer", until, note: `Mailbox problem, sending paused: ${result.error}` };
+      return { kind: "defer", until: new Date(now.getTime() + 15 * 60_000), note: `Email provider problem: ${result.error}` };
     }
     if (result.retryable) throw new RetryableError(result.error);
     if (result.bounced) await markBounced({ leadId: run.leadId, email: toEmail, detail: result.error, source: "Mail server" });

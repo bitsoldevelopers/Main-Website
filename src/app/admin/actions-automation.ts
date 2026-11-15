@@ -14,10 +14,10 @@ import { refreshOutreachEmail } from "@/lib/automation/lead-contacts";
 import { getOutreachSettings, saveOutreachSettings, senderProblems } from "@/lib/automation/settings";
 import { isCryptoConfigured, randomToken } from "@/lib/automation/crypto";
 import { checkInboxNow, resetInboxSchedule, verifyImap } from "@/lib/automation/email/inbox";
-import { getMailboxConfig, getMailboxCredentials, saveMailboxConfig } from "@/lib/automation/email/mailbox";
-import { resetDripSchedule } from "@/lib/automation/drip";
+import { getMailboxCredentials, removeMailbox, saveMailbox, setTransport, type MailboxCredentials } from "@/lib/automation/email/mailbox";
+import { moveUnsentToDrip, resetDripSchedule } from "@/lib/automation/drip";
 import { getEmailProvider } from "@/lib/automation/email/provider";
-import { clearSmtpPause, verifySmtp } from "@/lib/automation/email/smtp";
+import { clearSmtpPause, createSmtpProvider, verifySmtp } from "@/lib/automation/email/smtp";
 import { suppress, suppressionKey } from "@/lib/automation/suppression";
 import { recordActivity } from "@/lib/automation/timeline";
 import { checkEmailSyntax } from "@/lib/automation/validate";
@@ -84,6 +84,9 @@ export async function saveSenderSettings(_prev: FormState, formData: FormData): 
   if (dripAutomationId && !(await prisma.automation.findUnique({ where: { id: dripAutomationId }, select: { id: true } }))) {
     fieldErrors.dripAutomationId = "That automation no longer exists.";
   }
+  const sendWindowStart = int(str(formData, "sendWindowStart"), 10, 0, 23);
+  const sendWindowEnd = int(str(formData, "sendWindowEnd"), 22, 1, 24);
+  if (sendWindowEnd <= sendWindowStart) fieldErrors.sendWindowEnd = "The end must be after the start (00:00 to 24:00 means any time).";
   if (Object.keys(fieldErrors).length) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors };
 
   try {
@@ -100,6 +103,9 @@ export async function saveSenderSettings(_prev: FormState, formData: FormData): 
       dripAutomationId,
       emailDesign: isEmailDesign(str(formData, "emailDesign")) ? (str(formData, "emailDesign") as EmailDesign) : "showcase",
       showServices: formData.get("showServices") === "on",
+      sendWindowStart,
+      sendWindowEnd,
+      spreadEvenly: formData.get("spreadEvenly") === "on",
     });
   } catch (err) {
     return failure(err);
@@ -110,121 +116,166 @@ export async function saveSenderSettings(_prev: FormState, formData: FormData): 
   return { ok: true };
 }
 
-// ─── Sending mailbox (SMTP + IMAP) ──────────────────────────────────────────
+// ─── Sending mailboxes (SMTP + IMAP) ────────────────────────────────────────
 
 /** FormState plus the outcome lines a connection test reports. */
 export type MailboxFormState = (NonNullable<FormState> & { notes?: string[] }) | null;
 
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
 
-async function testConnections(): Promise<{ ok: boolean; notes: string[] }> {
-  const creds = await getMailboxCredentials();
-  if (!creds) return { ok: false, notes: ["No mailbox password is stored, or it can no longer be read: enter it again."] };
+function siteBase(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL || "https://bitsolmarketing.com").replace(/\/+$/, "");
+}
+
+async function testMailbox(creds: MailboxCredentials): Promise<{ ok: boolean; notes: string[] }> {
   const [smtp, imap] = await Promise.all([verifySmtp(creds), creds.watchInbox ? verifyImap(creds) : Promise.resolve(null)]);
   const notes = [
-    smtp.ok ? `Sending (SMTP, ${creds.smtpHost}:${creds.smtpPort}): login works.` : `Sending (SMTP): ${smtp.error}`,
-    ...(imap === null
-      ? ["Inbox (IMAP): not watched, so replies and bounces are not picked up."]
-      : [imap.ok ? `Inbox (IMAP, ${creds.imapHost}:${creds.imapPort}): login works, ${imap.messages} messages in INBOX.` : `Inbox (IMAP): ${imap.error}`]),
+    smtp.ok ? `${creds.user}: sending (SMTP) login works.` : `${creds.user}: sending (SMTP): ${smtp.error}`,
+    imap === null
+      ? `${creds.user}: inbox not watched, so replies and bounces to it are not picked up.`
+      : imap.ok
+        ? `${creds.user}: inbox (IMAP) login works, ${imap.messages} messages.`
+        : `${creds.user}: inbox (IMAP): ${imap.error}`,
   ];
   return { ok: smtp.ok && (imap === null || imap.ok), notes };
 }
 
-export async function saveMailboxSettings(_prev: MailboxFormState, formData: FormData): Promise<MailboxFormState> {
+/** Mailboxes or Resend. */
+export async function saveTransport(_prev: MailboxFormState, formData: FormData): Promise<MailboxFormState> {
   const session = await requireAdminAction("outreach.manage");
   const transport = str(formData, "transport") === "smtp" ? "smtp" : "resend";
+  try {
+    await setTransport(transport);
+  } catch (err) {
+    return failure(err);
+  }
+  void logActivity({ actor: actorLabel(session), action: "outreach.transport_saved", entity: "automation", detail: transport === "smtp" ? "Sending from the mailboxes" : "Sending through Resend" });
+  revalidateAutomation();
+  return { ok: true, notes: [transport === "smtp" ? "Outreach goes out from the connected mailboxes." : "Outreach goes out through Resend."] };
+}
+
+/** Adds a mailbox (no id) or updates one, then tests its logins. */
+export async function saveMailboxAction(_prev: MailboxFormState, formData: FormData): Promise<MailboxFormState> {
+  const session = await requireAdminAction("outreach.manage");
+  const id = str(formData, "id");
   const user = str(formData, "user").toLowerCase();
   const passwordRaw = formData.get("password");
   const password = typeof passwordRaw === "string" ? passwordRaw : "";
   const smtpHost = str(formData, "smtpHost").toLowerCase();
   const imapHost = str(formData, "imapHost").toLowerCase();
-  const smtpPort = int(str(formData, "smtpPort"), 465, 1, 65535);
-  const imapPort = int(str(formData, "imapPort"), 993, 1, 65535);
   const watchInbox = formData.get("watchInbox") === "on";
+  const fromName = str(formData, "fromName");
 
-  const current = await getMailboxConfig();
   const fieldErrors: Record<string, string> = {};
-  if (transport === "smtp") {
-    if (!user || checkEmailSyntax(user).validity === "INVALID") fieldErrors.user = "Enter the mailbox address, for example hello@bitsolmarketing.com.";
-    if (!password && !(current.hasPassword && current.user === user)) fieldErrors.password = "Enter the mailbox password.";
-    if (!HOST.test(smtpHost)) fieldErrors.smtpHost = "Enter the SMTP server, for example smtp.hostinger.com.";
-    if (watchInbox && !HOST.test(imapHost)) fieldErrors.imapHost = "Enter the IMAP server, for example imap.hostinger.com.";
-    if (!isCryptoConfigured()) return { ok: false, error: "Set AUTOMATION_SECRET (or ADMIN_SECRET) on the server first: the password is stored encrypted with it." };
-  }
+  if (!user || checkEmailSyntax(user).validity === "INVALID") fieldErrors.user = "Enter the mailbox address, for example sales@bitsolmarketing.com.";
+  if (!id && !password) fieldErrors.password = "Enter the mailbox password.";
+  if (!HOST.test(smtpHost)) fieldErrors.smtpHost = "Enter the SMTP server, for example smtp.hostinger.com.";
+  if (watchInbox && !HOST.test(imapHost)) fieldErrors.imapHost = "Enter the IMAP server, for example imap.hostinger.com.";
+  if (/[<>"\r\n]/.test(fromName)) fieldErrors.fromName = 'The name cannot contain < > or ".';
+  if (!isCryptoConfigured()) return { ok: false, error: "Set AUTOMATION_SECRET (or ADMIN_SECRET) on the server first: passwords are stored encrypted with it." };
   if (Object.keys(fieldErrors).length) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors };
 
+  let savedId: string;
   try {
-    await saveMailboxConfig({ transport, user, password, smtpHost: smtpHost || current.smtpHost, smtpPort, imapHost: imapHost || current.imapHost, imapPort, watchInbox });
-    if (transport === "smtp") {
-      // Outreach has to be sent as the mailbox (or an alias on its domain).
-      const sender = await getOutreachSettings();
-      if (!sender.fromEmail) await saveOutreachSettings({ fromEmail: user });
-    }
+    savedId = await saveMailbox({
+      id: id || undefined,
+      user,
+      password,
+      smtpHost,
+      smtpPort: int(str(formData, "smtpPort"), 465, 1, 65535),
+      imapHost: imapHost || "imap.hostinger.com",
+      imapPort: int(str(formData, "imapPort"), 993, 1, 65535),
+      watchInbox,
+      dailyLimit: int(str(formData, "dailyLimit"), 100, 1, 1000),
+      enabled: formData.get("enabled") === "on",
+      fromName,
+    });
   } catch (err) {
     return failure(err);
   }
-  clearSmtpPause();
+  clearSmtpPause(user);
   resetInboxSchedule();
   void logActivity({
     actor: actorLabel(session),
-    action: "outreach.mailbox_saved",
+    action: id ? "outreach.mailbox_updated" : "outreach.mailbox_added",
     entity: "automation",
-    detail: transport === "smtp" ? `Sending from ${user} via ${smtpHost}${password ? " (new password)" : ""}` : "Sending through Resend",
+    detail: `${user} via ${smtpHost}${password ? " (new password)" : ""}`,
   });
   revalidateAutomation();
-  if (transport !== "smtp") return { ok: true, notes: ["Saved. Outreach goes out through Resend."] };
-  const test = await testConnections();
+  const creds = await getMailboxCredentials(savedId);
+  if (!creds) return { ok: true, notes: ["Saved, but the stored password can no longer be read: enter it again."] };
+  const test = await testMailbox(creds);
   return { ok: true, notes: ["Saved.", ...test.notes] };
 }
 
-export async function testMailboxConnection(): Promise<MailboxFormState> {
+export async function removeMailboxAction(formData: FormData) {
+  const session = await requireAdminAction("outreach.manage");
+  const id = str(formData, "id");
+  const creds = await getMailboxCredentials(id);
+  await removeMailbox(id);
+  void logActivity({ actor: actorLabel(session), action: "outreach.mailbox_removed", entity: "automation", detail: creds?.user ?? id });
+  revalidateAutomation();
+}
+
+export async function testMailboxConnection(_prev: MailboxFormState, formData: FormData): Promise<MailboxFormState> {
   await requireAdminAction("outreach.manage");
-  const test = await testConnections();
+  const creds = await getMailboxCredentials(str(formData, "id"));
+  if (!creds) return { ok: false, error: "No password is stored for this mailbox, or it can no longer be read: enter it again." };
+  const test = await testMailbox(creds);
   return test.ok ? { ok: true, notes: test.notes } : { ok: false, error: "The mailbox did not pass the test.", notes: test.notes };
 }
 
+/** A sample email in the current design, from one mailbox (or through Resend). */
 export async function sendMailboxTestEmail(_prev: MailboxFormState, formData: FormData): Promise<MailboxFormState> {
   const session = await requireAdminAction("outreach.manage");
   const to = str(formData, "to").toLowerCase();
   if (!to || checkEmailSyntax(to).validity === "INVALID") return { ok: false, error: "Enter the address to send the test to.", fieldErrors: { to: "Enter a valid address." } };
 
-  const [provider, settings] = await Promise.all([getEmailProvider(), getOutreachSettings()]);
-  const problems = senderProblems(settings);
-  if (problems.length) return { ok: false, error: problems[0] };
-  if (!provider.isConfigured()) return { ok: false, error: provider.setupHint };
+  const settings = await getOutreachSettings();
+  const id = str(formData, "id");
+  const creds = id ? await getMailboxCredentials(id) : null;
+  if (id && !creds) return { ok: false, error: "No password is stored for this mailbox, or it can no longer be read: enter it again." };
+  const provider = creds ? createSmtpProvider([creds], []) : await getEmailProvider();
+  if (!creds) {
+    const problems = senderProblems(settings);
+    if (problems.length) return { ok: false, error: problems[0] };
+    if (!provider.isConfigured()) return { ok: false, error: provider.setupHint };
+  }
+  const fromAddress = creds ? creds.user : settings.fromEmail;
+  const fromName = (creds?.fromName || settings.fromName).replace(/["\\<>\r\n]/g, "").trim();
 
   const composed = composeEmail({
     subject: "Test email from BITSOL lead automation",
     body:
-      "Hello,\n\nThis is a test from Lead Automation → Settings. If it reached your inbox (not spam), outreach email from this mailbox is being delivered.\n\nReply to it if you like: within about five minutes the reply should show up under Settings → Status as a checked inbox. A reply to a test email does not change any lead.",
+      "Hello,\n\nThis is a test from Lead Automation → Settings. If it reached your inbox (not spam), outreach email from this mailbox is being delivered.\n\nReply to it if you like: within about five minutes the inbox check sees it. A reply to a test email does not change any lead.",
     // The test text uses no variables.
     values: {} as TemplateValues,
     design: settings.emailDesign,
-    services: settings.showServices ? { siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://bitsolmarketing.com" } : null,
+    services: settings.showServices ? { siteUrl: siteBase() } : null,
     footer: {
       companyName: settings.companyName,
       companyAddress: settings.companyAddress,
       signature: settings.signature,
-      unsubscribeUrl: `${(process.env.NEXT_PUBLIC_SITE_URL || "https://bitsolmarketing.com").replace(/\/+$/, "")}/unsubscribe`,
+      unsubscribeUrl: `${siteBase()}/unsubscribe`,
     },
   });
   const result = await provider.send({
-    from: `${settings.fromName.replace(/["\\<>\r\n]/g, "").trim()} <${settings.fromEmail}>`,
+    from: fromName ? `${fromName} <${fromAddress}>` : fromAddress,
     to,
-    replyTo: settings.replyTo || settings.fromEmail,
+    replyTo: settings.replyTo || fromAddress,
     subject: composed.subject,
     html: composed.html,
     text: composed.text,
     idempotencyKey: `bitsol-test-${randomToken(8)}`,
   });
-  void logActivity({ actor: actorLabel(session), action: "outreach.test_email", entity: "automation", detail: `To ${to}: ${result.ok ? "sent" : result.error}` });
+  void logActivity({ actor: actorLabel(session), action: "outreach.test_email", entity: "automation", detail: `From ${fromAddress} to ${to}: ${result.ok ? "sent" : result.error}` });
   if (!result.ok) return { ok: false, error: `Not sent: ${result.error}` };
   return {
     ok: true,
     notes: [
       provider.delivers
-        ? `Sent to ${to} from ${settings.fromEmail} via ${provider.name === "smtp" ? "the mailbox" : "Resend"}. Check the inbox and the spam folder.`
-        : `Test mode: recorded but not delivered (OUTREACH_EMAIL_MODE=test).`,
+        ? `Sent to ${to} from ${fromAddress}. Check the inbox and the spam folder.`
+        : "Test mode: recorded but not delivered (OUTREACH_EMAIL_MODE=test).",
     ],
   };
 }
@@ -233,14 +284,28 @@ export async function checkInboxNowAction(): Promise<MailboxFormState> {
   await requireAdminAction("outreach.manage");
   const report = await checkInboxNow();
   revalidateAutomation();
-  if (!report) return { ok: false, error: "The inbox is not watched: choose the mailbox as the sender and tick “Watch the inbox”." };
-  if (!report.ok) return { ok: false, error: `Inbox check failed: ${report.error}` };
-  return {
-    ok: true,
-    notes: [
-      `Read ${report.scanned} new message${report.scanned === 1 ? "" : "s"}: ${report.replies} repl${report.replies === 1 ? "y" : "ies"} from leads, ${report.bounces} bounce${report.bounces === 1 ? "" : "s"}, ${report.autoReplies} automatic repl${report.autoReplies === 1 ? "y" : "ies"} ignored.`,
-    ],
-  };
+  if (!report) return { ok: false, error: "No inbox is watched: connect a mailbox and tick “Watch the inbox”." };
+  const lines = (report.mailboxes ?? []).map((m) =>
+    m.ok
+      ? `${m.user}: ${m.scanned} new, ${m.replies} repl${m.replies === 1 ? "y" : "ies"}, ${m.bounces} bounce${m.bounces === 1 ? "" : "s"}.`
+      : `${m.user}: check failed: ${m.error}`
+  );
+  return report.ok ? { ok: true, notes: lines } : { ok: false, error: "An inbox check failed.", notes: lines };
+}
+
+/** Prospects started on import but never emailed go back to the daily drip. */
+export async function moveUnsentToDripAction(): Promise<MailboxFormState> {
+  const session = await requireAdminAction("outreach.manage");
+  let moved: number;
+  try {
+    moved = await moveUnsentToDrip();
+  } catch (err) {
+    return failure(err);
+  }
+  resetDripSchedule();
+  void logActivity({ actor: actorLabel(session), action: "outreach.moved_to_drip", entity: "automation", detail: `${moved} prospects` });
+  revalidateAutomation();
+  return { ok: true, notes: [`${moved.toLocaleString("en-GB")} prospects moved to the daily drip. They start a few a day as the sending limits leave room.`] };
 }
 
 // ─── Templates ──────────────────────────────────────────────────────────────

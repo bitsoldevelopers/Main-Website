@@ -103,6 +103,19 @@ export async function deferJob(id: string, until: Date, reason: string): Promise
   });
 }
 
+/**
+ * Moves every due outreach step to `until`. Used when nothing can be sent
+ * before then (outside sending hours, daily limit, every mailbox busy), so the
+ * scheduler does not claim and re-defer the same jobs every minute.
+ */
+export async function deferDueSteps(until: Date, reason: string, now = new Date()): Promise<number> {
+  const result = await prisma.automationJob.updateMany({
+    where: { type: "RUN_STEP", status: "PENDING", runAt: { lte: now } },
+    data: { runAt: until, lastError: reason.slice(0, 2000) },
+  });
+  return result.count;
+}
+
 /** Retries with backoff until the attempts run out, then fails for good. */
 export async function failJob(job: ClaimedJob, error: string, options: { retry: boolean }): Promise<"RETRY" | "FAILED"> {
   const retry = options.retry && job.attempts < job.maxAttempts;

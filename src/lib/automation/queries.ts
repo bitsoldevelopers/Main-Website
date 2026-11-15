@@ -5,9 +5,10 @@ import { PAGE_SIZE, safe, type Paged, type Result } from "@/lib/admin/queries";
 import { isCryptoConfigured } from "./crypto";
 import { ensureDefaults } from "./defaults";
 import { lastInboxReport } from "./email/inbox";
-import { getMailboxConfig, type MailboxConfig } from "./email/mailbox";
+import { getMailboxSettings, type MailboxSettings } from "./email/mailbox";
+import { describeWindow, mailboxUsage } from "./email/rotation";
 import { getEmailProvider, isTestMode } from "./email/provider";
-import { smtpPause } from "./email/smtp";
+import { smtpPauses } from "./email/smtp";
 import { GOOGLE_ENV, isGoogleConfigured } from "./google/client";
 import { isPersonalizerConfigured } from "./personalize";
 import { isSchedulerRunning } from "./scheduler";
@@ -47,24 +48,28 @@ export function getSetupStatus(): Promise<Result<SetupStatus>> {
       getOutreachSettings(),
       prisma.googleSheetConnection.count({ where: { status: "ACTIVE" } }),
       prisma.automation.count({ where: { status: "ACTIVE" } }),
-      getMailboxConfig(),
+      getMailboxSettings(),
       lastInboxReport(),
     ]);
     const provider = await getEmailProvider();
     const problems = senderProblems(settings);
     const has = (key: string) => Boolean(process.env[key]);
     const viaMailbox = mailbox.transport === "smtp";
-    const paused = viaMailbox ? smtpPause() : null;
+    const paused = viaMailbox ? smtpPauses() : [];
+    const sending = mailbox.mailboxes.filter((m) => m.enabled && m.hasPassword);
+    const watched = mailbox.mailboxes.some((m) => m.watchInbox);
+    const capacity = Math.min(settings.dailyLimit, sending.reduce((n, m) => n + m.dailyLimit, 0));
+    const hours = `${describeWindow({ start: settings.sendWindowStart, end: settings.sendWindowEnd })} Pakistan time`;
 
     const tracking: SetupItem = viaMailbox
       ? {
           key: "webhook",
           label: "Reply and bounce tracking",
-          done: mailbox.watchInbox && Boolean(inbox?.ok),
-          detail: !mailbox.watchInbox
-            ? "The inbox is not watched: replies do not stop sequences and bounces are not noticed. Turn it on under Sending mailbox."
+          done: watched && Boolean(inbox?.ok),
+          detail: !watched
+            ? "No inbox is watched: replies do not stop sequences and bounces are not noticed. Turn it on for each mailbox under Sending mailboxes."
             : !inbox
-              ? "The inbox is read every 5 minutes once the mailbox is saved."
+              ? "The inboxes are read every 5 minutes once a mailbox is saved."
               : inbox.ok
                 ? `Inbox read ${new Date(inbox.at).toLocaleString("en-GB", { timeZone: "Asia/Karachi", dateStyle: "medium", timeStyle: "short" })}: ${inbox.scanned} new, ${inbox.replies} repl${inbox.replies === 1 ? "y" : "ies"}, ${inbox.bounces} bounce${inbox.bounces === 1 ? "" : "s"}.`
                 : `The last inbox check failed: ${inbox.error}`,
@@ -84,17 +89,20 @@ export function getSetupStatus(): Promise<Result<SetupStatus>> {
     const items: SetupItem[] = [
       {
         key: "provider",
-        label: viaMailbox ? "Sending mailbox" : "Email provider",
-        done: provider.isConfigured() && !paused,
+        label: viaMailbox ? "Sending mailboxes" : "Email provider",
+        done: provider.isConfigured() && paused.length < sending.length,
         detail: isTestMode()
           ? "Test mode: emails are recorded but not delivered (OUTREACH_EMAIL_MODE=test)."
-          : paused
-            ? `Sending is paused until ${paused.until.toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", timeStyle: "short" })} after a mailbox problem: ${paused.error}`
-            : provider.isConfigured()
-              ? viaMailbox
-                ? `Sending from the mailbox ${mailbox.user} (${mailbox.smtpHost}).`
-                : "Resend is configured (RESEND_API_KEY)."
-              : provider.setupHint,
+          : !provider.isConfigured()
+            ? provider.setupHint
+            : viaMailbox
+              ? [
+                  `${sending.length} mailbox${sending.length === 1 ? "" : "es"} sending, up to ${capacity} emails a day, ${hours}.`,
+                  ...paused.map(
+                    (p) => `${p.address} is paused until ${p.until.toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", timeStyle: "short" })}: ${p.error}`
+                  ),
+                ].join(" ")
+              : "Resend is configured (RESEND_API_KEY).",
         href: viaMailbox ? "/admin/automation/settings#mailbox" : undefined,
         required: true,
       },
@@ -760,10 +768,21 @@ export function listSuppression(filters: { page: number; q?: string }): Promise<
   });
 }
 
-export function getSenderSettings(): Promise<Result<{ settings: OutreachSettings; problems: string[]; aiConfigured: boolean; mailbox: MailboxConfig }>> {
+export interface SenderSettingsData {
+  settings: OutreachSettings;
+  problems: string[];
+  aiConfigured: boolean;
+  mailbox: MailboxSettings;
+  /** Emails each mailbox sent in the last 24 hours, by address. */
+  sentByMailbox: Record<string, number>;
+}
+
+export function getSenderSettings(): Promise<Result<SenderSettingsData>> {
   return safe(async () => {
-    const [settings, mailbox] = await Promise.all([getOutreachSettings(), getMailboxConfig()]);
-    return { settings, problems: senderProblems(settings), aiConfigured: isPersonalizerConfigured(), mailbox };
+    const now = new Date();
+    const [settings, mailbox, usage] = await Promise.all([getOutreachSettings(), getMailboxSettings(), mailboxUsage(now)]);
+    const sentByMailbox = Object.fromEntries(mailbox.mailboxes.map((m) => [m.user, usage.get(m.user)?.sent ?? 0]));
+    return { settings, problems: senderProblems(settings), aiConfigured: isPersonalizerConfigured(), mailbox, sentByMailbox };
   });
 }
 

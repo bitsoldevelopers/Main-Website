@@ -9,8 +9,8 @@ import { getSenderSettings, getSetupStatus, listActiveAutomations, listSuppressi
 import { getDripStatus } from "@/lib/automation/drip";
 import { SUPPRESSION_REASON_LABELS } from "@/lib/automation/suppression";
 import type { SuppressionReason } from "@/lib/automation/outreach-email";
-import { SenderSettingsForm, SuppressionForm } from "@/components/admin/automation/SmallForms";
-import { MailboxSettingsForm, MailboxTools } from "@/components/admin/automation/MailboxForm";
+import { MoveToDripForm, SenderSettingsForm, SuppressionForm } from "@/components/admin/automation/SmallForms";
+import { MailboxManager, TransportForm } from "@/components/admin/automation/MailboxForm";
 import { ConfirmButton } from "@/components/admin/SubmitButton";
 import { DbUnavailable, EmptyState, KeyValue, PageHeader, Pagination, Panel, Pill, btn, inputClass, tdClass, thClass, trClass } from "@/components/admin/ui";
 
@@ -57,12 +57,12 @@ export default async function OutreachSettingsPage({ searchParams }: { searchPar
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <Panel id="mailbox" title="Sending mailbox" description="What delivers outreach email, and where replies and bounces are read.">
+          <Panel id="mailbox" title="Sending mailboxes" description="What delivers outreach email, and where replies and bounces are read.">
             {sender.ok ? (
               <div className="space-y-5">
-                <MailboxSettingsForm config={sender.data.mailbox} canEdit={canManage} fromEmail={sender.data.settings.fromEmail} />
-                {canManage && sender.data.mailbox.transport === "smtp" && sender.data.mailbox.hasPassword && (
-                  <MailboxTools />
+                <TransportForm transport={sender.data.mailbox.transport} canEdit={canManage} />
+                {sender.data.mailbox.transport === "smtp" && (
+                  <MailboxManager mailboxes={sender.data.mailbox.mailboxes} sentByMailbox={sender.data.sentByMailbox} canEdit={canManage} />
                 )}
               </div>
             ) : (
@@ -72,7 +72,10 @@ export default async function OutreachSettingsPage({ searchParams }: { searchPar
 
           <Panel title="Sender" description="Applies to every automation.">
             {sender.ok ? (
-              <SenderSettingsForm settings={sender.data.settings} canEdit={canManage} automations={automations.ok ? automations.data : []} drip={drip} />
+              <div className="space-y-5">
+                <SenderSettingsForm settings={sender.data.settings} canEdit={canManage} automations={automations.ok ? automations.data : []} drip={drip} />
+                {canManage && drip && <MoveToDripForm unsent={drip.unsent} />}
+              </div>
             ) : (
               <DbUnavailable error={sender.error} />
             )}

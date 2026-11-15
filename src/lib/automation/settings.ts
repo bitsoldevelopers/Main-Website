@@ -28,6 +28,12 @@ export interface OutreachSettings {
   emailDesign: EmailDesign;
   /** Show the four services (web, apps, marketing, chatbots) in every email. */
   showServices: boolean;
+  /** Sending hours in Pakistan time: from this hour (0–23)… */
+  sendWindowStart: number;
+  /** …to this hour (1–24). End not after start: any time. */
+  sendWindowEnd: number;
+  /** Spread each mailbox's daily limit evenly over the sending hours. */
+  spreadEvenly: boolean;
 }
 
 export const DEFAULT_OUTREACH_SETTINGS: OutreachSettings = {
@@ -45,6 +51,10 @@ export const DEFAULT_OUTREACH_SETTINGS: OutreachSettings = {
   // The owner chose the showcase design for outreach (14 Nov 2026).
   emailDesign: "showcase",
   showServices: true,
+  // The owner asked for 10:00–22:00 Pakistan time (14 Nov 2026).
+  sendWindowStart: 10,
+  sendWindowEnd: 22,
+  spreadEvenly: true,
 };
 
 const PREFIX = "outreach.";
@@ -81,26 +91,38 @@ export async function getOutreachSettings(): Promise<OutreachSettings> {
     dripAutomationId: stored.get("dripAutomationId") ?? base.dripAutomationId,
     emailDesign: isEmailDesign(stored.get("emailDesign")) ? (stored.get("emailDesign") as EmailDesign) : base.emailDesign,
     showServices: stored.has("showServices") ? stored.get("showServices") === "1" : base.showServices,
+    sendWindowStart: clampInt(stored.get("sendWindowStart"), base.sendWindowStart, 0, 23),
+    sendWindowEnd: clampInt(stored.get("sendWindowEnd"), base.sendWindowEnd, 1, 24),
+    spreadEvenly: stored.has("spreadEvenly") ? stored.get("spreadEvenly") === "1" : base.spreadEvenly,
   };
 }
 
+/** How one setting is stored: clamped, normalised, as text. */
+function serialize(key: keyof OutreachSettings, raw: unknown): string {
+  const d = DEFAULT_OUTREACH_SETTINGS;
+  switch (key) {
+    case "dailyLimit":
+      return String(clampInt(raw, d.dailyLimit, 1, 2000));
+    case "batchLimit":
+      return String(clampInt(raw, d.batchLimit, 1, 100));
+    case "dripPerDay":
+      return String(clampInt(raw, d.dripPerDay, 0, 1000));
+    case "sendWindowStart":
+      return String(clampInt(raw, d.sendWindowStart, 0, 23));
+    case "sendWindowEnd":
+      return String(clampInt(raw, d.sendWindowEnd, 1, 24));
+    case "showServices":
+    case "spreadEvenly":
+      return raw ? "1" : "0";
+    case "emailDesign":
+      return isEmailDesign(raw) ? raw : d.emailDesign;
+    default:
+      return String(raw).trim();
+  }
+}
+
 export async function saveOutreachSettings(input: Partial<OutreachSettings>): Promise<void> {
-  const entries = KEYS.filter((key) => input[key] !== undefined).map((key) => {
-    const raw = input[key];
-    const value =
-      key === "dailyLimit"
-        ? String(clampInt(raw, DEFAULT_OUTREACH_SETTINGS.dailyLimit, 1, 2000))
-        : key === "batchLimit"
-          ? String(clampInt(raw, DEFAULT_OUTREACH_SETTINGS.batchLimit, 1, 100))
-          : key === "dripPerDay"
-            ? String(clampInt(raw, DEFAULT_OUTREACH_SETTINGS.dripPerDay, 0, 1000))
-            : key === "showServices"
-              ? (raw ? "1" : "0")
-              : key === "emailDesign"
-                ? (isEmailDesign(raw) ? raw : DEFAULT_OUTREACH_SETTINGS.emailDesign)
-                : String(raw).trim();
-    return { key: `${PREFIX}${key}`, value };
-  });
+  const entries = KEYS.filter((key) => input[key] !== undefined).map((key) => ({ key: `${PREFIX}${key}`, value: serialize(key, input[key]) }));
   await prisma.$transaction(
     entries.map((entry) =>
       prisma.siteSetting.upsert({ where: { key: entry.key }, update: { value: entry.value }, create: entry })
