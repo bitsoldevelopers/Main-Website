@@ -32,6 +32,8 @@ export type SendResult =
       setup?: boolean;
       /** The recipient's address was refused outright: a hard bounce. */
       bounced?: boolean;
+      /** The mail server is limiting how fast we send: wait, then try again. */
+      rateLimited?: boolean;
     };
 
 export interface EmailProvider {

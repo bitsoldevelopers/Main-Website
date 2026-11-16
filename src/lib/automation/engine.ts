@@ -30,6 +30,8 @@ import { recordActivities, recordActivity } from "./timeline";
  */
 
 const DAY_MS = 86_400_000;
+/** How long every mailbox waits after the mail server reports a rate limit. */
+const RATE_LIMIT_PAUSE_MS = 30 * 60_000;
 
 /** Statuses owned by the automation; it only ever moves a lead between these. */
 const OUTREACH_STATUSES = ["NEW", "IMPORTED", "READY_FOR_OUTREACH", "EMAIL_QUEUED", "EMAIL_SENT", "FOLLOW_UP", "PAUSED"];
@@ -569,8 +571,17 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
   let senderAddress = settings.fromEmail;
   let senderName = settings.fromName;
   if (provider.name === "smtp") {
+    const all = await getSendingMailboxes();
+    const usable = all.filter((m) => !smtpPause(m.user, now.getTime()));
+    if (all.length > 0 && usable.length === 0) {
+      // Every mailbox is paused (a rate limit, or login problems): wait for the first to come back.
+      const until = new Date(Math.min(...all.map((m) => smtpPause(m.user, now.getTime())?.until.getTime() ?? now.getTime() + 60_000)));
+      const note = `Every mailbox is paused: ${smtpPause(all[0].user, now.getTime())?.error ?? "mailbox problem"}`;
+      await deferDueSteps(until, note, now);
+      return { kind: "defer", until, note };
+    }
     const choice = pickMailbox({
-      mailboxes: (await getSendingMailboxes()).filter((m) => !smtpPause(m.user, now.getTime())),
+      mailboxes: usable,
       usage: await mailboxUsage(now),
       sticky: await stickyAddress(run.id),
       now,
@@ -658,6 +669,16 @@ async function sendStep(run: LoadedRun, step: LoadedStep, budget: StepBudget, no
   if (!result.ok) {
     await prisma.emailMessage.update({ where: { id: message.id }, data: { status: "FAILED", error: result.error.slice(0, 2000) } });
     await prisma.emailEvent.create({ data: { messageId: message.id, leadId: run.leadId, type: "FAILED", payload: { error: result.error } } });
+    if (result.rateLimited && provider.name === "smtp") {
+      // Hostinger limits per hosting server as well as per mailbox, so every
+      // mailbox waits. Nothing counts against the lead; the step is retried later.
+      const note = `Mail server rate limit, all mailboxes paused for 30 minutes: ${result.error}`;
+      for (const m of await getSendingMailboxes()) pauseSmtp(m.user, note, RATE_LIMIT_PAUSE_MS);
+      const until = new Date(now.getTime() + RATE_LIMIT_PAUSE_MS);
+      budget.sendsLeft = 0;
+      await deferDueSteps(until, note, now);
+      return { kind: "defer", until, note };
+    }
     if (result.setup) {
       // Not this lead's fault. Over SMTP only that mailbox is paused and the
       // others keep sending; a first email can move to another mailbox.

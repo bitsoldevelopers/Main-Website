@@ -19,7 +19,9 @@ export type SmtpFailure =
   /** Worth trying the same email again later (4xx, a dropped connection). */
   | "TEMPORARY"
   /** Login, server or sender problem: every email would fail the same way. */
-  | "SETUP";
+  | "SETUP"
+  /** The mail server says too much is being sent: everything should wait a while. */
+  | "RATE_LIMIT";
 
 interface SmtpErrorShape {
   code?: unknown;
@@ -31,6 +33,8 @@ interface SmtpErrorShape {
 
 const CONNECTION_CODES = new Set(["ECONNECTION", "ETIMEDOUT", "ESOCKET", "EDNS", "ETLS", "EPROTOCOL", "ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "EHOSTUNREACH"]);
 
+const RATE_LIMIT_TEXT = /rate ?limit|too many (messages|connections|recipients|emails)|sending limit|quota exceeded|throttl/i;
+
 export function classifySmtpError(err: unknown): SmtpFailure {
   const e = (typeof err === "object" && err !== null ? err : {}) as SmtpErrorShape;
   const code = typeof e.code === "string" ? e.code : "";
@@ -38,6 +42,10 @@ export function classifySmtpError(err: unknown): SmtpFailure {
   const command = typeof e.command === "string" ? e.command.toUpperCase() : "";
 
   if (code === "EAUTH" || command.startsWith("AUTH")) return "SETUP";
+  // Hostinger answers 451 'Ratelimit "hostinger_out_ratelimit" exceeded' or
+  // 450 'too many messages from <server address>' when sending too fast.
+  const text = `${typeof e.response === "string" ? e.response : ""} ${typeof e.message === "string" ? e.message : ""}`;
+  if (status >= 400 && RATE_LIMIT_TEXT.test(text)) return "RATE_LIMIT";
   // Refused by Nodemailer itself before anything was sent ("Invalid recipient").
   if (command === "API") return typeof e.message === "string" && /recipient/i.test(e.message) ? "RECIPIENT" : "SETUP";
   if (status >= 400 && status < 500) return "TEMPORARY";
@@ -192,6 +200,7 @@ export function createSmtpProvider(mailboxes: MailboxCredentials[], problems: st
         const error = describeSmtpError(err);
         if (failure === "RECIPIENT") return { ok: false, error, retryable: false, bounced: true };
         if (failure === "SETUP") return { ok: false, error, retryable: false, setup: true };
+        if (failure === "RATE_LIMIT") return { ok: false, error, retryable: false, rateLimited: true };
         return { ok: false, error, retryable: true };
       } finally {
         transport.close();
