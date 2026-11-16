@@ -35,13 +35,16 @@ lived in `public/chatbot/`.
 | Chatbot Studio | chatbot.manage | 19 sections: contact details, personality, messages, menus, buttons, flows, options, markets, intents, pricing, teams, scoring, enterprise, handover, follow-up, source codes, proof, broadcast categories. Edited as JSON with validation. |
 | Simulator | chatbot.manage | Talk to the WhatsApp assistant with the live configuration and model. Nothing is sent or saved; the side panel shows what the team would receive. |
 | Chatbot Analytics | chatbot.view | Conversations, leads, outcomes, intents, languages, handovers, per channel and period. |
+| Templates | chatbot.manage | The WhatsApp Business Account's message templates, mirrored from Meta. Sync to learn which are approved, submit a new one for review, delete. See *Templates and broadcasts*. |
+| Broadcasts | chatbot.manage | Send an approved template to many contacts at once: compose, pick the audience, draft or schedule, then send from the row. Per-recipient delivery and read receipts. |
 | Chatbot Setup | chatbot.manage | Which AI provider is in use; **Connect WhatsApp** (the WhatsApp details, the callback URL and verify token for Meta, and the setup checks); the follow-up cron line; recent questions. |
 
 ADMIN has everything; MANAGER and EDITOR have `chatbot.view` and `chatbot.write`.
 
 ## Going live
 
-1. **Database.** Apply `docs/sql/2026-10-25-chatbot-update.sql` to the live
+1. **Database.** Apply `docs/sql/2026-10-25-chatbot-update.sql` and then
+   `docs/sql/2026-11-15-whatsapp-broadcasts.sql` to the live
    database (phpMyAdmin, or the mysql client over SSH). Migrations never run on
    deploy on Hostinger. Until it is applied the chat still answers, but nothing
    is stored and Admin → Chatbot reports the database unreachable.
@@ -107,6 +110,59 @@ Secrets never go back to the browser: the form shows where each value comes
 from and the last four characters of a saved secret. The activity log records
 which details changed, never their values.
 
+## Templates and broadcasts
+
+A broadcast is a message to people who did not write to the number in the
+last 24 hours, and Meta only allows that through a **message template** it
+has reviewed and approved. So the two screens are two halves of one job.
+
+**Templates** (Admin → Chatbot → Templates) mirrors the WhatsApp Business
+Account's template list. It needs the account ID and a permanent token with
+`whatsapp_business_management`, both entered on Chatbot Setup → Connect
+WhatsApp.
+
+- *Sync from Meta* reads every template in the account, with its approval
+  status, category, quality rating and rejection reason. Nothing else updates
+  the status, so a composer that shows no approved templates usually means
+  nobody has synced since the review. A template Meta no longer lists is
+  marked disabled, never deleted, so old broadcasts keep their history.
+- *New template* submits one for review: name in Meta (lowercase, digits,
+  underscores), language, category (utility is cheaper and reviewed more
+  leniently than marketing), optional header and footer, the body with
+  `{{1}}`, `{{2}}` placeholders, and an example value per placeholder, which
+  Meta requires. The verdict arrives on the next sync, in minutes to a day.
+- *Delete* removes the template from Meta as well. Meta deletes every
+  language variant of the name, which the confirmation says.
+
+**Broadcasts** (Admin → Chatbot → Broadcasts):
+
+1. *New broadcast*: pick an approved template, choose how each placeholder is
+   filled (the contact's WhatsApp profile name with a fallback, the same text
+   for everyone, or the contact's number), and pick the audience. The preview
+   shows what a sample recipient reads. A template with an image, video or
+   document header needs a public media URL, because Meta keeps the format
+   but not the file.
+2. *Audience*: either the contacts this number already knows (optionally only
+   those active in the last N days, optionally capped), or a pasted list of
+   numbers, one per line or a CSV with a name in the second column. Pasted
+   numbers become contacts, so a later STOP from them is honoured. Anyone who
+   has opted out or been blocked is always excluded, and the count on screen
+   is the count that will be messaged.
+3. *Save as draft* builds the recipient list and sends nothing. *Send* on the
+   row asks for confirmation with the exact count, then runs in the
+   background at four messages a second; the page refreshes itself while it
+   runs. A run cut short by a redeploy is resumed with *Retry*: recipients
+   already messaged are skipped.
+4. Optionally *Send at* a later time. A scheduled broadcast goes out on the
+   next run of the follow-up cron after that time, so the cron line from
+   Chatbot Setup must be installed on the server.
+
+The webhook matches Meta's delivery and read receipts to recipients, so each
+broadcast shows targeted, accepted by Meta, delivered, read and failed, and
+the detail page shows every recipient with Meta's reason for a failure.
+Meta charges per conversation a broadcast opens, and a burst to stale numbers
+lowers the number's quality rating, which is why the activity filter exists.
+
 ## How the AI is called
 
 - Claude `claude-opus-5-5` at **low effort** for replies (a live chat wants a
@@ -128,7 +184,7 @@ which details changed, never their values.
 ## Tests
 
 ```bash
-npm test                     # engine, scoring, detection, the Claude provider, WhatsApp settings, webhook and setup checks (no network)
+npm test                     # engine, scoring, detection, the Claude provider, WhatsApp settings, webhook, setup checks, number lists, templates and broadcasts (no network)
 DATABASE_URL=mysql://root@localhost:3306/bitsol_next npm run test:integration
 ```
 
@@ -149,24 +205,27 @@ src/app/api/admin/chatbot/*               Studio save/reset, simulator, conversa
 src/app/admin/(panel)/chatbot/*           the admin screens
 src/app/admin/actions-chatbot.ts          knowledge base, tickets & meetings, conversation actions
 src/app/admin/actions-whatsapp.ts         WhatsApp details, verify token, setup checks, webhook subscription
+src/app/admin/actions-broadcasts.ts       template sync/submit/delete, audience counts, broadcast create/send/unschedule/delete
 src/components/admin/chatbot/WhatsAppSetup.tsx  the Connect WhatsApp section of Chatbot Setup
+src/components/admin/chatbot/Template*.tsx, Broadcast*.tsx  the interactive parts of the Templates and Broadcasts screens
 src/components/chat/ChatPanel.tsx         the chat surface (widget and /chat page)
 src/components/ChatWidget.tsx             the floating button
 src/lib/ai/*                              providers (Claude, Gemini, OpenAI-compatible) and fallback chain, prompt, knowledge retrieval, details extraction, the Setup page's live key check
 src/lib/bot/*                             the WhatsApp conversation engine, schema, config, scoring, analytics, follow-ups
 src/lib/capture.ts                        conversation details → Lead / ChatRequest
-src/lib/whatsapp/*                        Cloud API client, webhook parsing, inbound handler, settings (panel or environment), setup checks
+src/lib/whatsapp/*                        Cloud API client, webhook parsing, inbound handler, settings (panel or environment), setup checks, templates (Meta sync), broadcasts (audience, send loop, receipts), number lists
 src/data/marketing/*                      built-in knowledge base, services catalogue, Chatbot Studio defaults
 src/lib/bot/__tests__/*                   engine tests (npm test), no network or database
 ```
 
 Tables: `ChatConversation`, `ChatMessage`, `ChatEvent`, `ChatKnowledge`,
-`ChatbotSetting`, `ChatLeadProfile`, `ChatRequest`, `WhatsappContact`.
+`ChatbotSetting`, `ChatLeadProfile`, `ChatRequest`, `WhatsappContact`,
+`WhatsappTemplate`, `Broadcast`, `BroadcastRecipient`.
 
 ## Not brought over
 
-The standalone chatbot app also had WhatsApp template management and
-broadcasts, quotations, customers, projects, portfolio, events and its own
-users and roles. Those are not part of this module: the website's own CRM,
-users and content screens cover the equivalents, and template sending needs a
-Meta token with `whatsapp_business_management`, which can be added later.
+The standalone chatbot app also had quotations, customers, projects,
+portfolio, events and its own users and roles. Those are not part of this
+module: the website's own CRM, users and content screens cover the
+equivalents. Its template management and broadcasts were brought over on
+15 November 2026 (see *Templates and broadcasts*).

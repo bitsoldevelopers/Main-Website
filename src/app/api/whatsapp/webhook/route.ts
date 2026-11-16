@@ -5,6 +5,7 @@ import { safeEqual } from "@/lib/admin/session";
 import { verifySignature } from "@/lib/whatsapp/client";
 import { parseInbound, parseStatuses } from "@/lib/whatsapp/parse";
 import { handleInbound } from "@/lib/whatsapp/handler";
+import { applyStatusUpdate } from "@/lib/whatsapp/broadcast";
 import { getWhatsAppSettings } from "@/lib/whatsapp/settings";
 import { SELF_TEST_HEADER, isSelfTest } from "@/lib/whatsapp/self-test";
 import type { WhatsAppWebhookBody } from "@/lib/whatsapp/types";
@@ -128,12 +129,25 @@ export async function POST(req: NextRequest) {
   }
 
   after(async () => {
+    // Delivery receipts. Most belong to ordinary assistant replies and are
+    // dropped after one indexed lookup; the ones that match a broadcast
+    // recipient are what turns "delivered" on the Broadcasts page into a
+    // real number rather than a count of messages Meta merely accepted.
+    // Kept apart from the messages below: a receipt must never stop a
+    // customer's message from being answered.
     try {
       for (const status of parseStatuses(body)) {
+        if (!status.id || !status.status) continue;
         if (status.status === "failed") {
           console.warn("[whatsapp] delivery failed:", status.id, status.errors?.[0]?.title ?? "unknown reason");
         }
+        await applyStatusUpdate(status.id, status.status, status.errors?.[0]?.title ?? status.errors?.[0]?.message);
       }
+    } catch (error) {
+      console.error("[whatsapp] receipt processing error:", error);
+    }
+
+    try {
       // Sequential on purpose: two messages from the same person share a
       // conversation, and answering them in parallel would send the replies
       // out of order.

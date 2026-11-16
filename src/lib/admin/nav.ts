@@ -159,6 +159,20 @@ export const adminNav: AdminNavGroup[] = [
         permission: "chatbot.view",
       },
       {
+        label: "Templates",
+        href: "/admin/chatbot/templates",
+        icon: FileText,
+        description: "WhatsApp message templates, synced from Meta and submitted for review.",
+        permission: "chatbot.manage",
+      },
+      {
+        label: "Broadcasts",
+        href: "/admin/chatbot/broadcasts",
+        icon: Megaphone,
+        description: "Send an approved template to many WhatsApp contacts at once.",
+        permission: "chatbot.manage",
+      },
+      {
         label: "Chatbot Setup",
         href: "/admin/chatbot/setup",
         icon: Plug,

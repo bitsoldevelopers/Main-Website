@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   pending: [] as Array<() => Promise<void>>,
   logEvent: vi.fn(async (entry: { action: string; message?: string }) => void entry),
   handleInbound: vi.fn(async (message: { id: string; text?: string }) => void message),
+  applyStatusUpdate: vi.fn(async (...args: unknown[]) => void args),
   // `stale` stands in for another process's cache: what a non-fresh read returns.
   settings: { current: null as WhatsAppSettings | null, stale: null as WhatsAppSettings | null },
 }));
@@ -15,6 +16,7 @@ vi.mock("next/server", async (importOriginal) => {
 });
 vi.mock("@/lib/notify", () => ({ logEvent: mocks.logEvent }));
 vi.mock("@/lib/whatsapp/handler", () => ({ handleInbound: mocks.handleInbound }));
+vi.mock("@/lib/whatsapp/broadcast", () => ({ applyStatusUpdate: mocks.applyStatusUpdate }));
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/whatsapp/settings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../settings")>();
@@ -90,6 +92,7 @@ beforeEach(() => {
   mocks.pending.length = 0;
   mocks.logEvent.mockClear();
   mocks.handleInbound.mockClear();
+  mocks.applyStatusUpdate.mockClear();
   mocks.settings.stale = null;
   use({ WHATSAPP_VERIFY_TOKEN: VERIFY, WHATSAPP_APP_SECRET: SECRET });
 });
@@ -188,6 +191,51 @@ describe("webhook deliveries (POST)", () => {
     await mocks.pending[0]();
     expect(mocks.handleInbound.mock.calls.map(([message]) => message.id)).toEqual(["wamid.1", "wamid.2"]);
     expect(mocks.handleInbound.mock.calls[0][0].text).toBe("Hello");
+  });
+
+  it("passes delivery receipts to the broadcast ledger, and still answers the messages", async () => {
+    const body = JSON.stringify({
+      object: "whatsapp_business_account",
+      entry: [
+        {
+          id: "WABA",
+          changes: [
+            {
+              field: "messages",
+              value: {
+                messaging_product: "whatsapp",
+                metadata: { phone_number_id: "111" },
+                statuses: [
+                  { id: "wamid.a", status: "delivered", timestamp: "1761400002", recipient_id: "923001234567" },
+                  { id: "wamid.b", status: "failed", timestamp: "1761400003", recipient_id: "923009999999", errors: [{ code: 131026, title: "Message undeliverable" }] },
+                  { status: "read" },
+                ],
+                messages: [{ id: "wamid.3", from: "923001234567", timestamp: "1761400004", type: "text", text: { body: "Thanks" } }],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    mocks.applyStatusUpdate.mockRejectedValueOnce(new Error("ledger down"));
+    const res = await deliver(body, signBody(body, SECRET));
+    expect(res.status).toBe(200);
+    expect(mocks.pending).toHaveLength(1);
+    await mocks.pending[0]();
+    // The first receipt threw: the second is skipped, the customer's message is still answered.
+    expect(mocks.applyStatusUpdate.mock.calls).toEqual([["wamid.a", "delivered", undefined]]);
+    expect(mocks.handleInbound.mock.calls.map(([message]) => message.id)).toEqual(["wamid.3"]);
+
+    mocks.pending.length = 0;
+    mocks.applyStatusUpdate.mockClear();
+    mocks.handleInbound.mockClear();
+    await deliver(body, signBody(body, SECRET));
+    await mocks.pending[0]();
+    expect(mocks.applyStatusUpdate.mock.calls).toEqual([
+      ["wamid.a", "delivered", undefined],
+      ["wamid.b", "failed", "Message undeliverable"],
+    ]);
+    expect(mocks.handleInbound).toHaveBeenCalledTimes(1);
   });
 
   it("acknowledges a signed body that is not JSON, so Meta stops resending it", async () => {

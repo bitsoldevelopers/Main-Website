@@ -199,21 +199,70 @@ export async function sendList(
   });
 }
 
+/** The picture, clip or file at the top of a template with a media header. */
+export interface TemplateHeaderMedia {
+  format: "IMAGE" | "VIDEO" | "DOCUMENT";
+  /** Public URL Meta can fetch, or a media id already uploaded to the account. */
+  link: string;
+  /** Shown as the file name on a document header. */
+  filename?: string;
+}
+
+export interface TemplateHeader {
+  /** Values for a text header's `{{1}}`, `{{2}}`… */
+  text?: string[];
+  media?: TemplateHeaderMedia;
+}
+
+/** The `template` object of a template send, as Meta's `/messages` wants it. */
+export function templatePayload(templateName: string, languageCode: string, variables: string[], header?: TemplateHeader): Record<string, unknown> {
+  const components: Array<Record<string, unknown>> = [];
+  const headerParameters: Array<Record<string, unknown>> = [];
+
+  if (header?.media) {
+    const { format, link, filename } = header.media;
+    const kind = format.toLowerCase(); // image | video | document
+    headerParameters.push({
+      type: kind,
+      // Meta accepts either `link` (a public URL it fetches) or `id` (media
+      // already uploaded). A value that is all digits can only be an id.
+      [kind]: {
+        ...(/^\d+$/.test(link) ? { id: link } : { link }),
+        ...(filename && kind === "document" ? { filename } : {}),
+      },
+    });
+  }
+  for (const text of header?.text ?? []) headerParameters.push({ type: "text", text });
+  if (headerParameters.length) components.push({ type: "header", parameters: headerParameters });
+
+  if (variables.length) {
+    components.push({ type: "body", parameters: variables.map((text) => ({ type: "text", text })) });
+  }
+
+  return {
+    name: templateName,
+    language: { code: languageCode },
+    ...(components.length ? { components } : {}),
+  };
+}
+
 /**
  * Send a pre-approved template — required to open a conversation outside the
- * 24-hour customer service window (follow-ups after a day). `variables` fills
- * the BODY's `{{1}}`, `{{2}}`… in order.
+ * 24-hour customer service window (follow-ups after a day, broadcasts).
+ * `variables` fills the BODY's `{{1}}`, `{{2}}`… in order; Meta only ever
+ * sees positions. A template whose header is an image, video or document
+ * needs `header.media` on every send: Meta does not keep the file that was
+ * approved, and omitting it fails the message rather than sending it
+ * without a picture.
  */
-export async function sendTemplate(to: string, templateName: string, languageCode = "en", variables: string[] = []): Promise<SendResult> {
-  return post({
-    to,
-    type: "template",
-    template: {
-      name: templateName,
-      language: { code: languageCode },
-      ...(variables.length ? { components: [{ type: "body", parameters: variables.map((text) => ({ type: "text", text })) }] } : {}),
-    },
-  });
+export async function sendTemplate(
+  to: string,
+  templateName: string,
+  languageCode = "en",
+  variables: string[] = [],
+  header?: TemplateHeader
+): Promise<SendResult> {
+  return post({ to, type: "template", template: templatePayload(templateName, languageCode, variables, header) });
 }
 
 /** Mark an inbound message as read (blue ticks). */

@@ -1018,5 +1018,161 @@ model WhatsappContact {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @default(now()) @updatedAt
 
+  broadcastRows BroadcastRecipient[]
+
   @@index([lastInboundAt])
+}
+
+// ─── WhatsApp: message templates and broadcasts ─────────────────────────────
+//
+// A broadcast is a Meta-approved template sent to many contacts at once.
+// Templates live in the WhatsApp Business Account and are reviewed by Meta;
+// the table here is a mirror kept current by "Sync from Meta". Only an
+// approved template with a Meta id can be broadcast.
+
+/// Lifecycle of a message template, mirroring Meta's own review states.
+enum TemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAUSED
+  DISABLED
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+}
+
+/// Per-recipient delivery state. SENT means Meta accepted the message, which
+/// is not the same as it having arrived: DELIVERED and READ come later from
+/// the webhook's receipts.
+enum BroadcastRecipientStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+/// A WhatsApp message template, as Meta knows it. Meta owns the truth; this
+/// row is a local mirror so the panel can list and compose without a Graph
+/// call on every page load. `syncedAt` says how stale the mirror is.
+model WhatsappTemplate {
+  id             String           @id @default(cuid())
+  // The name Meta knows it by: lowercase, digits and underscores. Unique per
+  // language in the business account, hence the pair constraint below.
+  metaName       String
+  metaId         String?          @unique
+  // Display name in the panel. Meta never sees it.
+  name           String
+  // Meta's language code: en, en_US, ur, ...
+  languageCode   String           @default("en")
+  category       TemplateCategory @default(UTILITY)
+  status         TemplateStatus   @default(PENDING)
+  // The BODY text with Meta's {{1}} placeholders intact.
+  body           String           @db.Text
+  headerText     String?
+  // TEXT, IMAGE, VIDEO, DOCUMENT, or null for no header.
+  headerFormat   String?
+  footerText     String?
+  // The BUTTONS component and every component, verbatim from Meta.
+  buttons        Json?
+  components     Json?
+  // Placeholder labels in order, e.g. ["name", "service"]. A JSON string
+  // array: MySQL has no scalar lists.
+  variables      Json
+  rejectedReason String?          @db.Text
+  // Meta's delivery quality signal (GREEN / YELLOW / RED) once there is data.
+  qualityScore   String?
+  syncedAt       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @default(now()) @updatedAt
+
+  broadcasts Broadcast[]
+
+  @@unique([metaName, languageCode])
+  @@index([status])
+}
+
+model Broadcast {
+  id             String          @id @default(cuid())
+  reference      String          @unique
+  status         BroadcastStatus @default(DRAFT)
+  title          String
+  // The template body with this broadcast's parameters filled in for a sample
+  // contact: what a recipient reads. Kept as text so the list stays readable
+  // after the template is edited or deleted in Meta.
+  body           String          @db.Text
+  // Saved audience filter, e.g. { kind: "segment", activeWithinDays: 90 }.
+  audience       Json?
+  templateId     String?
+  template       WhatsappTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  // Template name and language captured at send time.
+  templateName   String?
+  languageCode   String?
+  // Public URL (or uploaded media id) for a template whose header is an
+  // image, video or document. Meta needs it on every send.
+  headerMediaUrl String?         @db.VarChar(2048)
+  // How each {{n}} is filled: an ordered list of parameter sources.
+  parameters     Json?
+  scheduledAt    DateTime?
+  startedAt      DateTime?
+  sentAt         DateTime?
+  recipients     Int             @default(0)
+  // Accepted by Meta. Delivery is a separate, later fact.
+  sent           Int             @default(0)
+  delivered      Int             @default(0)
+  readCount      Int             @default(0)
+  failed         Int             @default(0)
+  // Why the run stopped, when it stopped badly.
+  error          String?         @db.Text
+  // Who drafted it, as the activity log names them.
+  createdBy      String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @default(now()) @updatedAt
+
+  recipientRows BroadcastRecipient[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([templateId])
+}
+
+/// One row per person a broadcast is sent to. Also the record of who has
+/// already been messaged, which is what makes a resumed run safe, and the
+/// place Meta's delivery receipts (keyed by message id) are matched.
+model BroadcastRecipient {
+  id          String                   @id @default(cuid())
+  broadcastId String
+  broadcast   Broadcast                @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  contactId   String?
+  contact     WhatsappContact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  // E.164 digits with no leading +, as Meta wants them.
+  waId        String
+  phone       String
+  name        String?
+  // The body parameters actually sent, in order (a JSON string array).
+  parameters  Json
+  status      BroadcastRecipientStatus @default(PENDING)
+  // Meta's wamid. Unique because delivery receipts arrive keyed by it.
+  messageId   String?                  @unique
+  error       String?                  @db.Text
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime                 @default(now())
+
+  @@unique([broadcastId, waId])
+  @@index([broadcastId, status])
+  @@index([contactId])
 }
