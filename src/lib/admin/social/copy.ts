@@ -1,4 +1,4 @@
-import { CLOUDFLARE_TEXT_MODELS, chatCompletionsUrl, cloudflareCredentials } from "./cloudflare";
+import { CLOUDFLARE_TEXT_MODELS, chatCompletionsUrl, cloudflareCredentials, type TextModel } from "./cloudflare";
 
 /**
  * Writes the short paragraph for a social post, and the description of the
@@ -19,7 +19,7 @@ export type CopyKeys = Partial<Record<string, string>>;
 
 interface Provider {
   name: string;
-  models: string[];
+  models: TextModel[];
   /** Where to send the request and with which key, or null when this provider has not been set up. */
   endpoint(keys: CopyKeys): { url: string; key: string } | null;
 }
@@ -42,17 +42,17 @@ const PROVIDERS: Provider[] = [
   },
   {
     name: "Gemini",
-    models: ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash", "gemini-flash-latest"],
+    models: ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash", "gemini-flash-latest"].map((id) => ({ id })),
     endpoint: keyed("GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"),
   },
   {
     name: "Groq",
-    models: ["llama-3.3-70b-versatile"],
+    models: [{ id: "llama-3.3-70b-versatile" }],
     endpoint: keyed("GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions"),
   },
   {
     name: "OpenRouter",
-    models: ["openrouter/free"],
+    models: [{ id: "openrouter/free" }],
     endpoint: keyed("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions"),
   },
 ];
@@ -113,14 +113,22 @@ function modelLabel(model: string): string {
   return model.replace(/^@cf\/[^/]+\//, "");
 }
 
+export interface WriteOptions {
+  /** Cloudflare models to try instead of the quick ones (the autopilot's writers). */
+  cloudflareModels?: TextModel[];
+  /** Per request. The autopilot runs in the background and can wait longer than a button. */
+  timeoutMs?: number;
+}
+
 /**
  * Sends the prompt to each configured model in turn and returns the first
  * answer that `accept` takes (it returns why an answer is unusable, or null).
  */
-async function complete(
+export async function writeText(
   prompt: string,
   keys: CopyKeys,
-  accept: (text: string) => string | null
+  accept: (text: string) => string | null,
+  options: WriteOptions = {}
 ): Promise<{ text: string; source: string }> {
   const failures: string[] = [];
 
@@ -128,22 +136,29 @@ async function complete(
     const endpoint = provider.endpoint(keys);
     if (!endpoint) continue;
 
-    for (const model of provider.models) {
+    const models = provider.name === "Cloudflare" && options.cloudflareModels ? options.cloudflareModels : provider.models;
+    for (const model of models) {
       try {
         const res = await fetch(endpoint.url, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${endpoint.key}` },
-          body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], max_tokens: 1024 }),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+          body: JSON.stringify({
+            model: model.id,
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: model.maxTokens ?? 1024,
+            ...model.extra,
+          }),
+          signal: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+        // A reasoning model that spent its budget thinking answers with content null.
+        const data = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
         const text = cleanCopy(data.choices?.[0]?.message?.content ?? "");
         const problem = accept(text);
         if (problem) throw new Error(problem);
-        return { text, source: `${provider.name} (${modelLabel(model)})` };
+        return { text, source: `${provider.name} (${modelLabel(model.id)})` };
       } catch (err) {
-        failures.push(`${provider.name} ${modelLabel(model)}: ${err instanceof Error ? err.message : err}`);
+        failures.push(`${provider.name} ${modelLabel(model.id)}: ${err instanceof Error ? err.message : err}`);
       }
     }
   }
@@ -156,7 +171,7 @@ async function complete(
 }
 
 export function writeSocialCopy(request: CopyRequest, keys: CopyKeys = {}): Promise<{ text: string; source: string }> {
-  return complete(buildPrompt(request), keys, (text) => (countWords(text) < 30 ? "answer too short" : null));
+  return writeText(buildPrompt(request), keys, (text) => (countWords(text) < 30 ? "answer too short" : null));
 }
 
 // ─── The picture ────────────────────────────────────────────────────────────
@@ -185,7 +200,7 @@ Subject: ${subject}${details ? `\nBackground: ${details}` : ""}${text ? `\nThe p
 
 /** A scene description for the image model, written from the post. */
 export async function describePicture(request: PictureRequest, keys: CopyKeys = {}): Promise<string> {
-  const { text } = await complete(buildPicturePrompt(request), keys, (answer) => {
+  const { text } = await writeText(buildPicturePrompt(request), keys, (answer) => {
     const words = countWords(answer);
     if (words < 6) return "answer too short";
     if (words > MAX_PICTURE_WORDS * 2) return "answer too long";

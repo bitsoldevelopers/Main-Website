@@ -16,8 +16,34 @@ const API = "https://api.cloudflare.com/client/v4";
 const CHECK_TIMEOUT = 20_000;
 const IMAGE_TIMEOUT = 90_000;
 
-/** Tried in order for text. The first is the best writer; the second is a different model in case it is busy. */
-export const CLOUDFLARE_TEXT_MODELS = ["@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/meta/llama-4-scout-17b-16e-instruct"];
+export interface TextModel {
+  id: string;
+  maxTokens?: number;
+  /** Extra request fields this model understands. */
+  extra?: Record<string, unknown>;
+}
+
+/**
+ * For the "Write with AI" button, where speed matters: Llama 3.3 answers in
+ * 2-4 s. The second is a different model in case the first is busy.
+ */
+export const CLOUDFLARE_TEXT_MODELS: TextModel[] = [
+  { id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
+  { id: "@cf/meta/llama-4-scout-17b-16e-instruct" },
+];
+
+/**
+ * For the autopilot, which publishes unreviewed, so quality comes first.
+ * Compared on 19 Nov 2026: GPT-OSS 120B wrote clearly the most specific,
+ * natural posts; with reasoning_effort "low" it took 9-12 s and ~30-40
+ * neurons. At the default effort it took 30-60 s and once spent the whole
+ * token budget thinking and returned no text, which is why the budget is
+ * large and the Llama models follow.
+ */
+export const CLOUDFLARE_WRITER_MODELS: TextModel[] = [
+  { id: "@cf/openai/gpt-oss-120b", maxTokens: 4096, extra: { reasoning_effort: "low" } },
+  ...CLOUDFLARE_TEXT_MODELS,
+];
 export const CLOUDFLARE_IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell";
 /** The most FLUX.1 [schnell] allows; better detail than the default 4 for about 40 more neurons. */
 const IMAGE_STEPS = 8;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { CheckCircle2, ExternalLink, Link2, Send, Sparkles, XCircle } from "lucide-react";
+import { Bot, CheckCircle2, ExternalLink, Link2, Send, Sparkles, XCircle } from "lucide-react";
 import { requireAdminPage } from "@/lib/admin/auth";
 import { hasPermission } from "@/lib/admin/rbac";
 import { formatDate } from "@/lib/admin/format";
@@ -8,12 +8,14 @@ import { paramFrom } from "@/lib/admin/queries";
 import { SITE_URL } from "@/lib/seo";
 import { listArticleOptions, listSocialAccounts, listSocialPosts, type SocialAccountView } from "@/lib/admin/social/accounts";
 import { SETUP_FIELDS, getSocialConfig, missingSetup, type SetupGroup, type SocialConfig } from "@/lib/admin/social/config";
+import { getAutopilot } from "@/lib/admin/social/autopilot";
 import { cloudflareCredentials } from "@/lib/admin/social/cloudflare";
 import { isCopyWriterConfigured } from "@/lib/admin/social/copy";
 import { PLATFORM_INFO, SOCIAL_PLATFORMS, callbackUrl, type SocialPlatform } from "@/lib/admin/social/platforms";
 import { disconnectSocialAccount } from "@/app/admin/actions-social";
 import { Callout, DbUnavailable, EmptyState, PageHeader, Panel, Pill, btn, tdClass, thClass, trClass } from "@/components/admin/ui";
 import { ConfirmButton } from "@/components/admin/SubmitButton";
+import { SocialAutopilot } from "@/components/admin/SocialAutopilot";
 import { SocialComposer } from "@/components/admin/SocialComposer";
 import { SocialSetupForm, type SetupFieldView } from "@/components/admin/SocialSetupForm";
 
@@ -215,12 +217,13 @@ export default async function SocialPage({
   const connectedNote = paramFrom(params.connected);
   const errorNote = paramFrom(params.error);
 
-  const [accounts, posts, articles, origin, config] = await Promise.all([
+  const [accounts, posts, articles, origin, config, autopilot] = await Promise.all([
     listSocialAccounts(),
     listSocialPosts(),
     listArticleOptions(),
     currentOrigin(),
     getSocialConfig(),
+    getAutopilot().catch(() => null),
   ]);
   const aiReady = isCopyWriterConfigured(config);
   const imagesReady = cloudflareCredentials(config) !== null;
@@ -293,6 +296,31 @@ export default async function SocialPage({
                   config={config}
                 />
               </div>
+            </Panel>
+          )}
+
+          {canManage && autopilot && (
+            <Panel
+              title={
+                <span className="flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-cyan-700" /> Autopilot
+                </span>
+              }
+              description="Writes a post with its image and publishes it to every connected account on a schedule, taking blog articles, services and tips in turn."
+              actions={autopilot.settings.enabled ? <Pill tone="green">On</Pill> : <Pill tone="slate">Off</Pill>}
+              className="mb-6"
+            >
+              <SocialAutopilot
+                settings={autopilot.settings}
+                nextRun={autopilot.state.nextRunAt ? formatDate(autopilot.state.nextRunAt, { time: true }) : null}
+                lastResult={
+                  autopilot.state.lastResult
+                    ? { ...autopilot.state.lastResult, at: formatDate(autopilot.state.lastResult.at, { time: true }) }
+                    : null
+                }
+                accountCount={accounts.data.length}
+                aiReady={aiReady}
+              />
             </Panel>
           )}
 

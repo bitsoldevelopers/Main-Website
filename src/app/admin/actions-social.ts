@@ -21,8 +21,10 @@ import { cloudflareCredentials, drawImage } from "@/lib/admin/social/cloudflare"
 import { countWords, describePicture, writeSocialCopy } from "@/lib/admin/social/copy";
 import { buildImagePrompt, jpegFromDataUrl, toDataUrl, toPostJpeg } from "@/lib/admin/social/image";
 import { PLATFORM_INFO, type PostInput, type SocialPlatform } from "@/lib/admin/social/platforms";
+import { getAutopilot, prepareAutopost, runAutopilot, saveAutopilotSettings } from "@/lib/admin/social/autopilot";
+import { SOURCE_LABEL, parseSettings } from "@/lib/admin/social/autopilot-plan";
 
-/** Writes from Admin → Social: app details, drafting a post and its image, publishing it, disconnecting an account. */
+/** Writes from Admin → Social: app details, drafting a post and its image, publishing it, the autopilot, disconnecting an account. */
 
 // LinkedIn's limit for post text; Facebook allows far more.
 const MAX_POST_CHARS = 3000;
@@ -256,6 +258,86 @@ export async function publishSocialPost(_prev: PublishState, formData: FormData)
       error: failed === outcomes.length ? "The post was not published." : "The post was published to some accounts only.",
     }),
   };
+}
+
+// ─── Autopilot ──────────────────────────────────────────────────────────────
+
+export type AutopilotSaveState = { ok: boolean; error?: string; message?: string } | null;
+
+export async function saveAutopilot(_prev: AutopilotSaveState, formData: FormData): Promise<AutopilotSaveState> {
+  const session = await requireAdminAction("social.manage");
+
+  const settings = parseSettings({
+    enabled: formData.get("enabled") === "on",
+    intervalHours: Number(str(formData, "intervalHours")),
+    sources: formData.getAll("sources"),
+    withImage: formData.get("withImage") === "on",
+  });
+  if (formData.getAll("sources").length === 0) return { ok: false, error: "Choose at least one kind of subject." };
+
+  try {
+    const { settings: before } = await getAutopilot();
+    await saveAutopilotSettings(settings);
+    void logActivity({
+      actor: actorLabel(session),
+      action: settings.enabled === before.enabled ? "social.autopilot_saved" : settings.enabled ? "social.autopilot_on" : "social.autopilot_off",
+      entity: "social",
+      detail: `${settings.enabled ? "On" : "Off"}, every ${settings.intervalHours} h, ${settings.sources.map((s) => SOURCE_LABEL[s]).join(" + ")}, ${settings.withImage ? "with" : "without"} image`,
+    });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "The settings could not be saved" };
+  }
+  revalidatePath("/admin/social");
+  return {
+    ok: true,
+    message: settings.enabled
+      ? `Saved. The autopilot posts every ${settings.intervalHours} hour${settings.intervalHours === 1 ? "" : "s"}; the first one goes out within a minute or two.`
+      : "Saved. The autopilot is off.",
+  };
+}
+
+export type AutopilotPreview =
+  | { ok: true; label: string; text: string; link?: string; image?: string; writer: string; imageNote?: string }
+  | { ok: false; error: string };
+
+/** Writes the kind of post the autopilot would publish next, and publishes nothing. */
+export async function previewAutopost(): Promise<AutopilotPreview> {
+  const session = await requireAdminAction("social.manage");
+  if (!rateLimit(`social-autopilot-preview:${session.sub}`, IMAGES_PER_MINUTE, 60_000)) {
+    return { ok: false, error: "That is a lot of previews in a minute. Wait a moment and try again." };
+  }
+  try {
+    const { settings, state } = await getAutopilot();
+    const prepared = await prepareAutopost(settings, state, await getSocialConfig());
+    return {
+      ok: true,
+      label: prepared.label,
+      text: prepared.text,
+      link: prepared.link,
+      image: prepared.image ? toDataUrl(prepared.image.jpeg) : undefined,
+      writer: prepared.writer,
+      imageNote: prepared.imageNote,
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "The preview could not be made" };
+  }
+}
+
+export type AutopilotRunResult = { ok: boolean; message: string };
+
+/** Makes and publishes one autopilot post now, whether or not the autopilot is on. */
+export async function postAutopostNow(): Promise<AutopilotRunResult> {
+  const session = await requireAdminAction("social.manage");
+  if (!rateLimit(`social-autopilot-now:${session.sub}`, 2, 60_000)) {
+    return { ok: false, message: "A post was just made. Wait a minute before the next one." };
+  }
+  try {
+    const run = await runAutopilot("manual");
+    revalidatePath("/admin/social");
+    return { ok: run.ok, message: run.message };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : "The post could not be made" };
+  }
 }
 
 // ─── Disconnect ─────────────────────────────────────────────────────────────

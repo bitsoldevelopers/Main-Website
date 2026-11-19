@@ -35,6 +35,8 @@ export interface TickReport {
   inbox?: string;
   /** Set when this pass started new prospects from the imported list. */
   drip?: string;
+  /** Set when this pass made a social autopilot post (or tried to). */
+  social?: string;
 }
 
 const state = globalThis as unknown as {
@@ -110,6 +112,17 @@ async function tick(options: { source: string; budgetMs: number; limit: number }
           }
         }
       }
+    }
+
+    // The social autopilot's post, when one is due. Last, because it takes
+    // about 20 seconds, and on its own so its trouble never stops the rest.
+    // Imported here so the queue does not load the social module otherwise.
+    try {
+      const { runSocialAutopilotIfDue } = await import("@/lib/admin/social/autopilot");
+      const social = await runSocialAutopilotIfDue();
+      if (social) report.social = social;
+    } catch (err) {
+      report.social = `Social autopilot failed: ${err instanceof Error ? err.message.split("\n")[0] : err}`;
     }
 
     const dayAgo = Date.now() - 86_400_000;
