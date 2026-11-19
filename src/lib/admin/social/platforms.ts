@@ -86,6 +86,16 @@ export interface PostInput {
   linkTitle?: string;
   linkDescription?: string;
   linkImage?: string;
+  /**
+   * A picture posted as a photo. It takes the place of the link card, so the
+   * link goes into the text instead: a post carries one or the other.
+   */
+  image?: { jpeg: Buffer; alt: string };
+}
+
+/** The post text with the link written at the end. */
+export function textWithLink(post: PostInput): string {
+  return post.link ? `${post.text}\n\n${post.link}` : post.text;
 }
 
 export interface PostResult {

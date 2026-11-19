@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { CheckCircle2, ExternalLink, Link2, Send, Share2, Sparkles, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, Link2, Send, Sparkles, XCircle } from "lucide-react";
 import { requireAdminPage } from "@/lib/admin/auth";
 import { hasPermission } from "@/lib/admin/rbac";
 import { formatDate } from "@/lib/admin/format";
@@ -8,6 +8,7 @@ import { paramFrom } from "@/lib/admin/queries";
 import { SITE_URL } from "@/lib/seo";
 import { listArticleOptions, listSocialAccounts, listSocialPosts, type SocialAccountView } from "@/lib/admin/social/accounts";
 import { SETUP_FIELDS, getSocialConfig, missingSetup, type SetupGroup, type SocialConfig } from "@/lib/admin/social/config";
+import { cloudflareCredentials } from "@/lib/admin/social/cloudflare";
 import { isCopyWriterConfigured } from "@/lib/admin/social/copy";
 import { PLATFORM_INFO, SOCIAL_PLATFORMS, callbackUrl, type SocialPlatform } from "@/lib/admin/social/platforms";
 import { disconnectSocialAccount } from "@/app/admin/actions-social";
@@ -168,6 +169,41 @@ function PlatformCard({
   );
 }
 
+/** One AI service in the AI writer panel: what it does, and its key. */
+function AiService({
+  title,
+  role,
+  ready,
+  group,
+  config,
+}: {
+  title: string;
+  role: string;
+  ready: boolean;
+  group: SetupGroup;
+  config: SocialConfig;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <h3 className="font-semibold text-slate-900">{title}</h3>
+        {ready ? <Pill tone="green">Ready</Pill> : <Pill tone="slate">Not set up</Pill>}
+      </div>
+      <p className="mb-4 text-sm text-slate-500">{role}</p>
+      {ready ? (
+        <details>
+          <summary className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-900">Change the key</summary>
+          <div className="mt-4">
+            <SocialSetupForm group={group} fields={setupFields(group, config)} />
+          </div>
+        </details>
+      ) : (
+        <SocialSetupForm group={group} fields={setupFields(group, config)} />
+      )}
+    </div>
+  );
+}
+
 export default async function SocialPage({
   searchParams,
 }: {
@@ -187,13 +223,14 @@ export default async function SocialPage({
     getSocialConfig(),
   ]);
   const aiReady = isCopyWriterConfigured(config);
+  const imagesReady = cloudflareCredentials(config) !== null;
 
   return (
     <>
       <PageHeader
         eyebrow="Growth"
         title="Social"
-        description="Connect the company's LinkedIn and Facebook, draft a short post with AI, and publish it to both from here."
+        description="Connect the company's LinkedIn and Facebook, draft a short post and its image with AI, and publish it to both from here."
       />
 
       {connectedNote && (
@@ -231,46 +268,50 @@ export default async function SocialPage({
                   <Sparkles className="h-4 w-4 text-cyan-700" /> AI writer
                 </span>
               }
-              description="Drafts the post, about 100 words. It is not used to write articles."
-              actions={aiReady ? <Pill tone="green">Ready</Pill> : <Pill tone="slate">No key</Pill>}
+              description="Drafts the post, about 100 words, and its image. It is not used to write articles."
+              actions={
+                <div className="flex flex-wrap gap-1.5">
+                  <Pill tone={aiReady ? "green" : "slate"}>Text {aiReady ? "ready" : "off"}</Pill>
+                  <Pill tone={imagesReady ? "green" : "slate"}>Images {imagesReady ? "ready" : "off"}</Pill>
+                </div>
+              }
               className="mb-6"
             >
-              {aiReady ? (
-                <details>
-                  <summary className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-900">
-                    Change the API key
-                  </summary>
-                  <div className="mt-4 max-w-xl">
-                    <SocialSetupForm group="AI" fields={setupFields("AI", config)} />
-                  </div>
-                </details>
-              ) : (
-                <div className="max-w-xl">
-                  <SocialSetupForm group="AI" fields={setupFields("AI", config)} />
-                </div>
-              )}
+              <div className="grid gap-8 lg:grid-cols-2">
+                <AiService
+                  title="Cloudflare Workers AI"
+                  role="Writes the text and draws the image, on Cloudflare's free daily allowance."
+                  ready={imagesReady}
+                  group="CLOUDFLARE"
+                  config={config}
+                />
+                <AiService
+                  title="Gemini"
+                  role="Backup for the text when Cloudflare is unavailable. It does not make images."
+                  ready={Boolean(config.GEMINI_API_KEY)}
+                  group="AI"
+                  config={config}
+                />
+              </div>
             </Panel>
           )}
 
           <Panel
             title="Write a post"
-            description="Pick what the post is about, let the AI draft about 100 words, edit it, then publish."
+            description={
+              accounts.data.length === 0
+                ? "Let the AI draft the post and its image. Copy them to LinkedIn yourself, or connect an account above to publish from here."
+                : "Pick what the post is about, let the AI draft about 100 words and an image, edit them, then publish."
+            }
             className="mb-6"
           >
-            {accounts.data.length === 0 ? (
-              <EmptyState
-                icon={Share2}
-                title="Connect an account first"
-                description="Once LinkedIn or Facebook is connected above, you can write and publish posts here."
-              />
-            ) : (
-              <SocialComposer
-                accounts={accounts.data}
-                articles={articles.ok ? articles.data : []}
-                aiReady={aiReady}
-                siteUrl={SITE_URL}
-              />
-            )}
+            <SocialComposer
+              accounts={accounts.data}
+              articles={articles.ok ? articles.data : []}
+              aiReady={aiReady}
+              imagesReady={imagesReady}
+              siteUrl={SITE_URL}
+            />
           </Panel>
 
           <Panel title="Recent posts" description="Everything published from this page, newest first." bodyClassName="p-0">

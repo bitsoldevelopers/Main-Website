@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 import { decryptSecret, encryptSecret } from "../crypto";
 import { issueState, readState, STATE_MAX_AGE } from "../oauth-state";
 import { escapeLittleText, linkedInAuthUrl, versionCandidates } from "../linkedin";
 import { facebookAuthUrl } from "../facebook";
-import { buildPrompt, cleanCopy, countWords } from "../copy";
-import { callbackUrl, platformFromSlug, providerError } from "../platforms";
+import { buildPicturePrompt, buildPrompt, cleanCopy, countWords, isCopyWriterConfigured } from "../copy";
+import { callbackUrl, platformFromSlug, providerError, textWithLink } from "../platforms";
+import { chatCompletionsUrl, cloudflareCredentials, cloudflareProblem, isAccountId } from "../cloudflare";
+import { buildImagePrompt, jpegFromDataUrl, toDataUrl, toPostJpeg } from "../image";
 import { SETUP_FIELDS, isSetupGroup, missingSetup, readSetupInput, type SocialConfig } from "../config";
 
 const EMPTY: SocialConfig = {
@@ -14,6 +17,8 @@ const EMPTY: SocialConfig = {
   FACEBOOK_APP_ID: "",
   FACEBOOK_APP_SECRET: "",
   GEMINI_API_KEY: "",
+  CLOUDFLARE_API_TOKEN: "",
+  CLOUDFLARE_ACCOUNT_ID: "",
 };
 
 beforeEach(() => {
@@ -153,9 +158,14 @@ describe("app details", () => {
     expect(missingSetup("AI", { ...EMPTY, GEMINI_API_KEY: "k" })).toEqual([]);
   });
 
+  it("needs both the Cloudflare token and the Account ID", () => {
+    expect(missingSetup("CLOUDFLARE", EMPTY).map((f) => f.key)).toEqual(["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"]);
+    expect(missingSetup("CLOUDFLARE", { ...EMPTY, CLOUDFLARE_API_TOKEN: "cfut_x" }).map((f) => f.key)).toEqual(["CLOUDFLARE_ACCOUNT_ID"]);
+  });
+
   it("marks every secret as one", () => {
     const secrets = Object.values(SETUP_FIELDS).flat().filter((f) => f.secret).map((f) => f.key);
-    expect(secrets.sort()).toEqual(["FACEBOOK_APP_SECRET", "GEMINI_API_KEY", "LINKEDIN_CLIENT_SECRET"]);
+    expect(secrets.sort()).toEqual(["CLOUDFLARE_API_TOKEN", "FACEBOOK_APP_SECRET", "GEMINI_API_KEY", "LINKEDIN_CLIENT_SECRET"]);
   });
 
   it("reads a submitted form, keeping what was left empty or unchanged", () => {
@@ -202,5 +212,78 @@ describe("post copy", () => {
 
   it("counts words without the hashtags", () => {
     expect(countWords("Five words in this line\n\n#SEO #Pakistan #Marketing")).toBe(5);
+  });
+
+  it("counts Cloudflare as a writer only with both the token and the account", () => {
+    for (const key of ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "GEMINI_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY"]) {
+      vi.stubEnv(key, "");
+    }
+    expect(isCopyWriterConfigured({})).toBe(false);
+    expect(isCopyWriterConfigured({ CLOUDFLARE_API_TOKEN: "cfut_x" })).toBe(false);
+    expect(isCopyWriterConfigured({ CLOUDFLARE_API_TOKEN: "cfut_x", CLOUDFLARE_ACCOUNT_ID: "0123456789abcdef0123456789abcdef" })).toBe(true);
+    expect(isCopyWriterConfigured({ GEMINI_API_KEY: "k" })).toBe(true);
+  });
+});
+
+describe("Cloudflare", () => {
+  it("takes the panel's values over the environment", () => {
+    vi.stubEnv("CLOUDFLARE_API_TOKEN", "env-token");
+    vi.stubEnv("CLOUDFLARE_ACCOUNT_ID", "env-account");
+    expect(cloudflareCredentials({})).toEqual({ token: "env-token", accountId: "env-account" });
+    expect(cloudflareCredentials({ CLOUDFLARE_API_TOKEN: "panel-token" })).toEqual({ token: "panel-token", accountId: "env-account" });
+    vi.stubEnv("CLOUDFLARE_ACCOUNT_ID", "");
+    expect(cloudflareCredentials({ CLOUDFLARE_API_TOKEN: "panel-token" })).toBeNull();
+  });
+
+  it("builds the OpenAI-compatible endpoint and checks account ids", () => {
+    expect(chatCompletionsUrl("abc")).toBe("https://api.cloudflare.com/client/v4/accounts/abc/ai/v1/chat/completions");
+    expect(isAccountId("0123456789abcdef0123456789ABCDEF")).toBe(true);
+    expect(isAccountId("0123456789abcdef")).toBe(false);
+    expect(isAccountId("https://dash.cloudflare.com/0123456789abcdef0123456789abcdef")).toBe(false);
+  });
+
+  it("explains the errors seen from the real API", () => {
+    // Recorded 19 Nov 2026: an unknown token, and a valid token without Workers AI.
+    expect(cloudflareProblem(400, { errors: [{ code: 9106, message: "Authentication failed (status: 400)" }] })).toMatch(/does not recognise this API token/);
+    expect(cloudflareProblem(403, { errors: [{ code: 10000, message: "Authentication error" }] })).toMatch(/Workers AI → Edit/);
+    expect(cloudflareProblem(429, null)).toMatch(/allowance is used up/);
+    expect(cloudflareProblem(500, { errors: [{ code: 1, message: "Internal" }] })).toBe("Cloudflare answered HTTP 500 — Internal.");
+  });
+});
+
+describe("post image", () => {
+  it("asks for a scene with nothing written in it", () => {
+    const prompt = buildPicturePrompt({ subject: "Answer WhatsApp within an hour", text: "Customers leave when nobody replies." });
+    expect(prompt).toContain("Nothing written anywhere in the picture");
+    expect(prompt).toContain("Subject: Answer WhatsApp within an hour");
+    expect(prompt).toContain("The post: Customers leave when nobody replies.");
+  });
+
+  it("adds the house style to the scene", () => {
+    expect(buildImagePrompt("  A shop owner\nreplies to a customer on her phone  ")).toMatch(
+      /^A shop owner replies to a customer on her phone\. Professional editorial photograph.*No text, no letters/
+    );
+  });
+
+  it("round-trips an image through the publish form as a JPEG", async () => {
+    const png = await sharp({ create: { width: 1600, height: 1600, channels: 3, background: "#2563eb" } }).png().toBuffer();
+    const jpeg = await toPostJpeg(png);
+    const meta = await sharp(jpeg).metadata();
+    expect(meta.format).toBe("jpeg");
+    expect(meta.width).toBe(1080);
+
+    const back = await jpegFromDataUrl(toDataUrl(jpeg));
+    expect((await sharp(back).metadata()).format).toBe("jpeg");
+  });
+
+  it("refuses anything but an image data URL", async () => {
+    await expect(jpegFromDataUrl("https://example.com/a.jpg")).rejects.toThrow(/could not be read/);
+    await expect(jpegFromDataUrl("data:text/html;base64,PGgxPg==")).rejects.toThrow(/could not be read/);
+    await expect(jpegFromDataUrl("data:image/jpeg;base64,bm90IGFuIGltYWdl")).rejects.toThrow(/could not be read/);
+  });
+
+  it("writes the link at the end when a picture replaces the card", () => {
+    expect(textWithLink({ text: "Post", link: "https://bitsolmarketing.com/blog/x" })).toBe("Post\n\nhttps://bitsolmarketing.com/blog/x");
+    expect(textWithLink({ text: "Post" })).toBe("Post");
   });
 });

@@ -17,14 +17,18 @@ import {
   verifySetup,
   type SocialConfig,
 } from "@/lib/admin/social/config";
-import { countWords, writeSocialCopy } from "@/lib/admin/social/copy";
+import { cloudflareCredentials, drawImage } from "@/lib/admin/social/cloudflare";
+import { countWords, describePicture, writeSocialCopy } from "@/lib/admin/social/copy";
+import { buildImagePrompt, jpegFromDataUrl, toDataUrl, toPostJpeg } from "@/lib/admin/social/image";
 import { PLATFORM_INFO, type PostInput, type SocialPlatform } from "@/lib/admin/social/platforms";
 
-/** Writes from Admin → Social: app details, drafting a post, publishing it, disconnecting an account. */
+/** Writes from Admin → Social: app details, drafting a post and its image, publishing it, disconnecting an account. */
 
 // LinkedIn's limit for post text; Facebook allows far more.
 const MAX_POST_CHARS = 3000;
 const DRAFTS_PER_MINUTE = 6;
+const IMAGES_PER_MINUTE = 4;
+const MAX_IDEA_CHARS = 500;
 
 function str(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -43,7 +47,7 @@ async function articleFor(slug: string) {
 
 export type SetupState = { ok: boolean; error?: string; message?: string } | null;
 
-const SERVICE: Record<string, string> = { LINKEDIN: "LinkedIn", FACEBOOK: "Facebook", AI: "Google" };
+const SERVICE: Record<string, string> = { LINKEDIN: "LinkedIn", FACEBOOK: "Facebook", AI: "Google", CLOUDFLARE: "Cloudflare" };
 
 /**
  * Saves the ids and secrets of one app. Fields left empty keep the value they
@@ -65,7 +69,6 @@ export async function saveSocialSetup(_prev: SetupState, formData: FormData): Pr
     const next = { ...current, ...changed };
     const missing = missingSetup(group, next);
     if (missing.length > 0) return { ok: false, error: `Still needed: ${missing.map((f) => f.label).join(", ")}.` };
-
     const problem = await verifySetup(group, next);
     if (problem) return { ok: false, error: problem };
 
@@ -107,18 +110,69 @@ export async function draftSocialCopy(input: {
     if (!article && !topic) return { ok: false, error: "Choose an article or type a topic first." };
 
     const labels = [...new Set(input.platforms ?? [])].map((p) => PLATFORM_INFO[p]?.label).filter(Boolean);
-    const { GEMINI_API_KEY } = await getSocialConfig();
     const { text, source } = await writeSocialCopy(
       {
         audience: labels.length > 0 ? labels.join(" and ") : "LinkedIn",
         subject: article ? article.title : topic,
         details: article ? [article.excerpt, topic].filter(Boolean).join(" ") : undefined,
       },
-      { GEMINI_API_KEY }
+      await getSocialConfig()
     );
     return { ok: true, text, words: countWords(text), source };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "The draft could not be written" };
+  }
+}
+
+// ─── Image ──────────────────────────────────────────────────────────────────
+
+export type ImageResult = { ok: true; image: string; description: string } | { ok: false; error: string };
+
+/**
+ * Draws the post's picture with Cloudflare FLUX. The scene comes from the
+ * admin's own idea when one is typed, otherwise the AI writes one from the
+ * post. The image is returned for the preview and not stored anywhere.
+ */
+export async function generateSocialImage(input: {
+  articleSlug?: string;
+  topic?: string;
+  text?: string;
+  idea?: string;
+}): Promise<ImageResult> {
+  const session = await requireAdminAction("social.post");
+
+  if (!rateLimit(`social-image:${session.sub}`, IMAGES_PER_MINUTE, 60_000)) {
+    return { ok: false, error: "That is a lot of images in a minute. Wait a moment and try again." };
+  }
+
+  try {
+    const config = await getSocialConfig();
+    const credentials = cloudflareCredentials(config);
+    if (!credentials) return { ok: false, error: "Images need the Cloudflare token. An admin can add it under AI writer on this page." };
+
+    const idea = (input.idea ?? "").trim().slice(0, MAX_IDEA_CHARS);
+    const text = (input.text ?? "").trim().slice(0, MAX_POST_CHARS);
+    const article = await articleFor(input.articleSlug ?? "");
+    const subject = article ? article.title : (input.topic ?? "").trim().slice(0, 500);
+    if (!idea && !subject && !text) return { ok: false, error: "Choose an article, type a topic or describe the picture first." };
+
+    let description = idea;
+    if (!description) {
+      try {
+        description = await describePicture(
+          { subject: subject || "the post below", text, details: article?.excerpt ?? undefined },
+          config
+        );
+      } catch {
+        // The picture can still be drawn from the subject alone.
+        description = `A business owner in a bright modern office, thinking about ${subject || "growing their business"}`;
+      }
+    }
+
+    const jpeg = await toPostJpeg(await drawImage(credentials, buildImagePrompt(description)));
+    return { ok: true, image: toDataUrl(jpeg), description };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "The image could not be made" };
   }
 }
 
@@ -147,6 +201,16 @@ export async function publishSocialPost(_prev: PublishState, formData: FormData)
   }
 
   const post: PostInput = { text };
+
+  const image = str(formData, "image");
+  if (image) {
+    try {
+      post.image = { jpeg: await jpegFromDataUrl(image), alt: str(formData, "imageAlt").slice(0, 1000) || "Image for the post" };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "The attached image could not be read." };
+    }
+  }
+
   try {
     const article = await articleFor(str(formData, "articleSlug"));
     const articleUrl = article ? `${SITE_URL}/blog/${article.slug}` : "";

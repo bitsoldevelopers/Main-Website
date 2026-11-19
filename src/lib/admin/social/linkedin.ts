@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import type { SocialConfig } from "./config";
-import { providerError, type ConnectedAccount, type PostInput, type PostResult } from "./platforms";
+import { providerError, textWithLink, type ConnectedAccount, type PostInput, type PostResult } from "./platforms";
 
 /**
  * LinkedIn: OAuth for the company page named by LINKEDIN_COMPANY_ID, and
@@ -134,6 +134,27 @@ export function escapeLittleText(text: string): string {
   return text.replace(/[\\|{}@[\]()<>*_~]|#(?![\p{L}\p{N}_])/gu, (char) => `\\${char}`);
 }
 
+/** Uploads a JPEG through the Images API and returns its urn:li:image id. */
+async function uploadImage(token: string, owner: string, jpeg: Buffer): Promise<string> {
+  const init = await api(token, "/images?action=initializeUpload", {
+    method: "POST",
+    body: { initializeUploadRequest: { owner } },
+  });
+  const body = (await init.json().catch(() => null)) as { value?: { uploadUrl?: string; image?: string } } | null;
+  if (!init.ok || !body?.value?.uploadUrl || !body.value.image) {
+    throw new Error(init.status === 401 ? "LinkedIn rejected the access token. Reconnect the account." : providerError(init.status, body));
+  }
+
+  const upload = await fetch(body.value.uploadUrl, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
+    body: new Uint8Array(jpeg),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+  });
+  if (!upload.ok) throw new Error(`the upload answered HTTP ${upload.status}`);
+  return body.value.image;
+}
+
 /** Uploads the link's image as the card thumbnail. LinkedIn takes JPG, PNG and GIF only. */
 async function uploadThumbnail(token: string, owner: string, imageUrl: string): Promise<string | null> {
   try {
@@ -142,34 +163,46 @@ async function uploadThumbnail(token: string, owner: string, imageUrl: string): 
     const original = Buffer.from(await download.arrayBuffer());
     if (original.length === 0 || original.length > MAX_IMAGE_BYTES) return null;
     const jpeg = await sharp(original).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
-
-    const init = await api(token, "/images?action=initializeUpload", {
-      method: "POST",
-      body: { initializeUploadRequest: { owner } },
-    });
-    const body = (await init.json().catch(() => null)) as { value?: { uploadUrl?: string; image?: string } } | null;
-    if (!init.ok || !body?.value?.uploadUrl || !body.value.image) return null;
-
-    const upload = await fetch(body.value.uploadUrl, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg" },
-      body: new Uint8Array(jpeg),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT),
-    });
-    return upload.ok ? body.value.image : null;
+    return await uploadImage(token, owner, jpeg);
   } catch {
     // A post without a thumbnail is better than no post.
     return null;
   }
 }
 
-export async function postToLinkedIn(token: string, organizationId: string, post: PostInput): Promise<PostResult> {
-  const author = `urn:li:organization:${organizationId}`;
+/** What the post shows below the text: the attached picture, a link card, or nothing. */
+async function postContent(token: string, author: string, post: PostInput) {
+  if (post.image) {
+    let image: string;
+    try {
+      image = await uploadImage(token, author, post.image.jpeg);
+    } catch (err) {
+      // The admin chose this picture, so the post does not go out without it.
+      throw new Error(`LinkedIn did not take the image (${err instanceof Error ? err.message : err}). Nothing was posted.`);
+    }
+    return { media: { id: image, altText: post.image.alt.slice(0, 1000) } };
+  }
 
   // A link card needs a title. Without one the link goes into the text.
-  const asCard = Boolean(post.link && post.linkTitle);
-  const text = post.link && !asCard ? `${post.text}\n\n${post.link}` : post.text;
-  const thumbnail = asCard && post.linkImage ? await uploadThumbnail(token, author, post.linkImage) : null;
+  if (post.link && post.linkTitle) {
+    const thumbnail = post.linkImage ? await uploadThumbnail(token, author, post.linkImage) : null;
+    return {
+      article: {
+        source: post.link,
+        title: post.linkTitle,
+        ...(post.linkDescription && { description: post.linkDescription.slice(0, 250) }),
+        ...(thumbnail && { thumbnail }),
+      },
+    };
+  }
+  return null;
+}
+
+export async function postToLinkedIn(token: string, organizationId: string, post: PostInput): Promise<PostResult> {
+  const author = `urn:li:organization:${organizationId}`;
+  const content = await postContent(token, author, post);
+  // A card carries the link itself; otherwise it is written at the end of the text.
+  const text = content && "article" in content ? post.text : textWithLink(post);
 
   const res = await api(token, "/posts", {
     method: "POST",
@@ -178,16 +211,7 @@ export async function postToLinkedIn(token: string, organizationId: string, post
       commentary: escapeLittleText(text),
       visibility: "PUBLIC",
       distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
-      ...(asCard && {
-        content: {
-          article: {
-            source: post.link,
-            title: post.linkTitle,
-            ...(post.linkDescription && { description: post.linkDescription.slice(0, 250) }),
-            ...(thumbnail && { thumbnail }),
-          },
-        },
-      }),
+      ...(content && { content }),
       lifecycleState: "PUBLISHED",
       isReshareDisabledByAuthor: false,
     },

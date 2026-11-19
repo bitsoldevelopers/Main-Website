@@ -1,5 +1,5 @@
 import type { SocialConfig } from "./config";
-import { providerError, type ConnectedAccount, type PostInput, type PostResult } from "./platforms";
+import { providerError, textWithLink, type ConnectedAccount, type PostInput, type PostResult } from "./platforms";
 
 /**
  * Facebook: OAuth for the Pages the signing-in person manages, and publishing
@@ -85,14 +85,37 @@ export async function connectFacebook(config: SocialConfig, code: string, redire
   return accounts;
 }
 
+/**
+ * Posts a photo with the text as its caption. The image is uploaded with the
+ * request rather than fetched by Facebook from a URL, so it works from a
+ * development machine too.
+ */
+async function postPhoto(token: string, pageId: string, post: PostInput & { image: NonNullable<PostInput["image"]> }) {
+  const form = new FormData();
+  form.set("message", textWithLink(post));
+  form.set("access_token", token);
+  form.set("source", new Blob([new Uint8Array(post.image.jpeg)], { type: "image/jpeg" }), "post.jpg");
+  const res = await fetch(`${GRAPH}/${encodeURIComponent(pageId)}/photos`, {
+    method: "POST",
+    body: form,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+  });
+  const body = (await res.json().catch(() => null)) as { id?: string; post_id?: string } | null;
+  if (!res.ok || !body?.id) throw new Error(providerError(res.status, body));
+  // post_id is the feed post the photo appears in; id is the photo itself.
+  return { id: body.post_id || body.id };
+}
+
 export async function postToFacebook(token: string, pageId: string, post: PostInput): Promise<PostResult> {
   let result: { id: string };
   try {
-    result = await graph<{ id: string }>(
-      `/${encodeURIComponent(pageId)}/feed`,
-      { message: post.text, ...(post.link && { link: post.link }), access_token: token },
-      "POST"
-    );
+    result = post.image
+      ? await postPhoto(token, pageId, { ...post, image: post.image })
+      : await graph<{ id: string }>(
+          `/${encodeURIComponent(pageId)}/feed`,
+          { message: post.text, ...(post.link && { link: post.link }), access_token: token },
+          "POST"
+        );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(

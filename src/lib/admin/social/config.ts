@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { WORKERS_AI_PERMISSION, checkWorkersAi } from "./cloudflare";
 import { decryptSecret, encryptSecret } from "./crypto";
 
 /**
- * App details for Admin → Social: the ids and secrets that LinkedIn, Facebook
- * and Google issue for BITSOL's apps.
+ * App details for Admin → Social: the ids and secrets that LinkedIn, Facebook,
+ * Google and Cloudflare issue for BITSOL's apps.
  *
  * They are entered on the Social page and stored encrypted in SiteSetting
  * under "social.<NAME>". A server environment variable of the same name is
@@ -18,13 +19,15 @@ export const SETUP_KEYS = [
   "FACEBOOK_APP_ID",
   "FACEBOOK_APP_SECRET",
   "GEMINI_API_KEY",
+  "CLOUDFLARE_API_TOKEN",
+  "CLOUDFLARE_ACCOUNT_ID",
 ] as const;
 export type SetupKey = (typeof SETUP_KEYS)[number];
 
 /** Every value, "" when it is set nowhere. */
 export type SocialConfig = Record<SetupKey, string>;
 
-export const SETUP_GROUPS = ["LINKEDIN", "FACEBOOK", "AI"] as const;
+export const SETUP_GROUPS = ["LINKEDIN", "FACEBOOK", "AI", "CLOUDFLARE"] as const;
 export type SetupGroup = (typeof SETUP_GROUPS)[number];
 
 export interface SetupField {
@@ -54,6 +57,22 @@ export const SETUP_FIELDS: Record<SetupGroup, SetupField[]> = {
     { key: "FACEBOOK_APP_SECRET", label: "App secret", hint: "Same screen; press Show.", secret: true },
   ],
   AI: [{ key: "GEMINI_API_KEY", label: "Gemini API key", hint: "Free from aistudio.google.com/apikey", secret: true }],
+  CLOUDFLARE: [
+    {
+      key: "CLOUDFLARE_API_TOKEN",
+      label: "API token",
+      hint: `Cloudflare → My Profile → API Tokens. It needs ${WORKERS_AI_PERMISSION}.`,
+      secret: true,
+    },
+    {
+      // Not looked up from the token: listing accounts needs a permission a
+      // Workers AI token does not have (seen with the owner's token, 19 Nov 2026).
+      key: "CLOUDFLARE_ACCOUNT_ID",
+      label: "Account ID",
+      hint: "32 letters and digits: the part after dash.cloudflare.com/ in the address bar once you are signed in.",
+      secret: false,
+    },
+  ],
 };
 
 export function isSetupGroup(value: string): value is SetupGroup {
@@ -171,6 +190,10 @@ export async function verifySetup(group: SetupGroup, config: SocialConfig): Prom
       if (body?.access_token) return null;
       const error = body?.error as { message?: string } | undefined;
       return `Facebook rejected these app details${error?.message ? `: ${error.message}` : "."}`;
+    }
+
+    if (group === "CLOUDFLARE") {
+      return await checkWorkersAi({ token: config.CLOUDFLARE_API_TOKEN, accountId: config.CLOUDFLARE_ACCOUNT_ID });
     }
 
     const { status } = await check("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", {
