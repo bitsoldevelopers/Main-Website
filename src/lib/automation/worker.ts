@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { runDripIfDue } from "./drip";
+import { replyTriageFailed, runReplyTriage } from "./email/auto-reply";
 import { checkInboxIfDue } from "./email/inbox";
 import { failRun, processRun, type StepBudget } from "./engine";
 import { runImport } from "./import-pipeline";
@@ -52,6 +53,7 @@ export function lastTick(): TickReport | undefined {
 async function runJob(job: ClaimedJob, budget: StepBudget): Promise<{ note: string; sent: number; deferUntil?: Date }> {
   if (job.type === "RUN_STEP") return processRun(job.refId, budget);
   if (job.type === "IMPORT") return { note: await runImport(job.refId), sent: 0 };
+  if (job.type === "REPLY_TRIAGE") return runReplyTriage(job.refId, job.attempts);
   throw new Error(`Unknown job type "${job.type}"`);
 }
 
@@ -108,6 +110,7 @@ async function tick(options: { source: string; budgetMs: number; limit: number }
           else {
             report.failed++;
             if (job.type === "RUN_STEP") await failRun(job.refId, message);
+            if (job.type === "REPLY_TRIAGE") await replyTriageFailed(job.refId, message);
             console.warn(`[automation] job ${job.type} ${job.refId} failed: ${message}`);
           }
         }

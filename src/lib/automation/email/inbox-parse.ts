@@ -1,3 +1,5 @@
+import { extractReplyText, looksLikeAutoAck } from "./mime";
+
 /**
  * Reads one message from the outreach mailbox and decides what it is: a
  * person replying, an automatic reply (out of office), or a bounce. Pure:
@@ -19,6 +21,10 @@ export interface ClassifiedMail {
   messageId: string;
   /** Outreach Message-IDs this message refers to or quotes, without brackets. */
   outreachIds: string[];
+  /** REPLY and AUTO_REPLY: what the sender wrote, without the quoted email. */
+  text?: string;
+  /** REPLY and AUTO_REPLY: the Message-ID and References headers as sent, for answering in the same thread. */
+  thread?: { messageId: string; references: string };
   /** BOUNCE only. */
   bounce?: {
     /** Addresses the report says could not be delivered to. */
@@ -83,6 +89,8 @@ function outreachIdsIn(text: string): string[] {
 const BOUNCE_SENDER = /^(mailer-daemon|postmaster|mail-daemon|mailerdaemon)@/i;
 const BOUNCE_SUBJECT = /(undeliver|delivery status notification|delivery (has )?failed|delivery failure|failure notice|returned mail|mail delivery (failed|system)|could not be delivered|non[- ]?delivery)/i;
 const DELAY_SUBJECT = /(delayed|delay|warning:.*not.*delivered|will retry)/i;
+/** Senders nobody reads: an answer to them goes nowhere. */
+const MACHINE_SENDER = /^(no-?reply|do-?not-?reply|donotreply|noreply-[a-z0-9-]+|notifications?|auto-?(reply|responder|mailer))@/i;
 const AUTO_SUBJECT = /^\s*(auto(matic)?[ -]?(reply|response)|out of (the )?office|ooo\b|away from|on (annual )?leave|vacation|abwesenheit|absence)/i;
 
 function isAutomatic(headers: Map<string, string[]>, subject: string): boolean {
@@ -137,8 +145,10 @@ export function classifyMail(raw: string): ClassifiedMail {
 
   // A reply names the original only in its headers; a quoted body is not proof.
   const referenced = outreachIdsIn([...(headers.get("in-reply-to") ?? []), ...(headers.get("references") ?? [])].join(" "));
-  if (fromDaemon || isAutomatic(headers, subject)) {
-    return { kind: "AUTO_REPLY", from, subject, messageId, outreachIds: referenced };
+  const text = extractReplyText(raw);
+  const thread = { messageId: first(headers, "message-id").slice(0, 300), references: (headers.get("references") ?? []).join(" ").slice(0, 2000) };
+  if (fromDaemon || MACHINE_SENDER.test(from) || isAutomatic(headers, subject) || looksLikeAutoAck(subject, text)) {
+    return { kind: "AUTO_REPLY", from, subject, messageId, outreachIds: referenced, text, thread };
   }
-  return { kind: "REPLY", from, subject, messageId, outreachIds: referenced };
+  return { kind: "REPLY", from, subject, messageId, outreachIds: referenced, text, thread };
 }

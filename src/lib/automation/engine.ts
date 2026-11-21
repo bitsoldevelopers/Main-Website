@@ -267,7 +267,7 @@ export async function handleLeadStatusChange(leadId: string, status: string, act
 
 // ─── Events from the outside world ──────────────────────────────────────────
 
-async function createSalesTask(input: {
+export async function createSalesTask(input: {
   leadId: string;
   runId?: string | null;
   title: string;

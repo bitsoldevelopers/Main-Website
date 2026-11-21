@@ -101,6 +101,43 @@ at 100 emails a day, about 25 new prospects a day is the steady state, and a
 daily limit gets through it faster. A prospect that cannot be emailed when its
 turn comes (unsubscribed or bounced meanwhile) is passed over, not retried.
 
+## Answering replies with AI
+
+Settings → Sender → *Answer replies with AI*: **Off** (a person answers, as
+before), **Suggest an answer on the timeline**, or **Send the answer
+automatically**. While it is on, the inboxes are read every 2 minutes.
+
+A reply is not treated as a person's answer straight away. The inbox reader
+stores what the lead wrote (decoded, without the quoted email, in the
+`RECEIVED` event's payload), holds the lead's next outreach email back for an
+hour and queues a `REPLY_TRIAGE` job (`email/auto-reply.ts`). The job asks the
+AI which kind of reply it is and what to answer:
+
+| The AI says | What happens |
+|---|---|
+| Automatic reply (helpdesk "we received your email", ticket numbers, out of office) | Nothing is sent and the sequence carries on: nobody has replied. |
+| Asked to stop, or called it spam | The address is unsubscribed (suppressed). No answer. |
+| Not interested | The sequence stops and a sales task is created. No answer. |
+| Interested, a question, a referral, anything else a person wrote | The sequence stops and a sales task is created, as before. The answer goes out from the mailbox they wrote to, in the same thread (`In-Reply-To` / `References`), signed by the team, and is on the lead's timeline. |
+
+Helpdesk acknowledgements that are obvious from their words ("your email has
+been received … one of the team will get back to you") are filed as automatic
+replies by the parser already (`email/mime.ts`) and never reach the AI.
+
+The AI answers from the chatbot's knowledge base (Admin → Chatbot), the four
+services and the owner's *Instructions for the AI*. It is told never to invent
+prices, timelines or results: without a price in the instructions or the
+knowledge base it suggests a short call or WhatsApp instead. The lead's text is
+passed as data, fenced, and the model is told not to follow instructions in
+it. Links other than bitsolmarketing.com and wa.me are removed from the answer.
+
+Which AI: the chatbot's (`AI_PROVIDER`) when its key is on the server, else
+the social writer's (Cloudflare Workers AI and the free tiers set up under
+Admin → Social). The AI gets three tries a few minutes apart; then the reply is
+handed to a person exactly as before. After *AI answers per lead, at most*
+answers to one lead, the next suggested answer goes on the timeline with a
+sales task instead of being sent.
+
 ## Environment variables
 
 | Variable | Needed for | Notes |

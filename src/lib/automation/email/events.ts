@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { markBounced, markLeadReplied, markUnsubscribed } from "../engine";
 import { normalizeEmail } from "../normalize";
+import { enqueueJob, holdLeadSteps } from "../queue";
 import { recordActivity } from "../timeline";
 
 /**
@@ -40,6 +41,11 @@ export interface InboundEvent {
   detail?: string | null;
   /** Hard bounces are permanent; soft ones (mailbox full…) are not. */
   permanent?: boolean;
+  /**
+   * RECEIVED only: let the AI read the reply first (email/auto-reply.ts)
+   * instead of treating it as a person's answer straight away.
+   */
+  triage?: { delayMinutes: number };
   payload: Prisma.InputJsonValue;
 }
 
@@ -177,8 +183,9 @@ async function recordReply(event: InboundEvent): Promise<EventResult> {
       : null);
   if (!message) return "IGNORED";
 
+  let eventId: string;
   try {
-    await prisma.emailEvent.create({
+    const created = await prisma.emailEvent.create({
       data: {
         messageId: message.id,
         leadId: message.leadId,
@@ -187,10 +194,21 @@ async function recordReply(event: InboundEvent): Promise<EventResult> {
         payload: event.payload,
         occurredAt: event.occurredAt,
       },
+      select: { id: true },
     });
+    eventId = created.id;
   } catch (err) {
     if (isUniqueViolation(err)) return "DUPLICATE";
     throw err;
+  }
+
+  if (event.triage) {
+    // Nothing else goes to this lead until the reply is read: an hour is far
+    // longer than that takes, and an automatic reply lets the sequence go on.
+    const now = Date.now();
+    await holdLeadSteps(message.leadId, new Date(now + 60 * 60_000));
+    await enqueueJob({ type: "REPLY_TRIAGE", refId: eventId, runAt: new Date(now + event.triage.delayMinutes * 60_000), maxAttempts: 4 });
+    return "RECORDED";
   }
 
   await markLeadReplied({

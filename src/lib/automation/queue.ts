@@ -8,12 +8,13 @@ import { prisma } from "@/lib/prisma";
  * request, say) look at the same row at once.
  */
 
-export const JOB_TYPES = ["RUN_STEP", "IMPORT"] as const;
+export const JOB_TYPES = ["RUN_STEP", "IMPORT", "REPLY_TRIAGE"] as const;
 export type JobType = (typeof JOB_TYPES)[number];
 
 export const JOB_TYPE_LABELS: Record<JobType, string> = {
   RUN_STEP: "Automation step",
   IMPORT: "Lead import",
+  REPLY_TRIAGE: "Answer a lead's reply",
 };
 
 /** A worker that died mid-job loses its claim after this long. */
@@ -112,6 +113,21 @@ export async function deferDueSteps(until: Date, reason: string, now = new Date(
   const result = await prisma.automationJob.updateMany({
     where: { type: "RUN_STEP", status: "PENDING", runAt: { lte: now } },
     data: { runAt: until, lastError: reason.slice(0, 2000) },
+  });
+  return result.count;
+}
+
+/**
+ * Holds a lead's next outreach email back until `until` (never earlier than
+ * it was due): a reply is being read, and if a person wrote it the sequence
+ * stops before anything else goes out.
+ */
+export async function holdLeadSteps(leadId: string, until: Date): Promise<number> {
+  const runs = await prisma.automationRun.findMany({ where: { leadId, status: "ACTIVE" }, select: { id: true } });
+  if (runs.length === 0) return 0;
+  const result = await prisma.automationJob.updateMany({
+    where: { type: "RUN_STEP", status: "PENDING", refId: { in: runs.map((r) => r.id) }, runAt: { lt: until } },
+    data: { runAt: until, lastError: "Held while a reply from this lead is read" },
   });
   return result.count;
 }

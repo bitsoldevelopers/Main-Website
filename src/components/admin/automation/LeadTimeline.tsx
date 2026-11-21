@@ -1,5 +1,6 @@
 import {
   Ban,
+  Bot,
   CheckSquare,
   CircleDot,
   Clock,
@@ -55,6 +56,8 @@ const STYLE: Record<string, { icon: LucideIcon; className: string }> = {
   FOLLOW_UP_SCHEDULED: { icon: Clock, className: "bg-amber-100 text-amber-700" },
   FOLLOW_UP_SENT: { icon: Send, className: "bg-violet-100 text-violet-700" },
   REPLIED: { icon: Reply, className: "bg-emerald-100 text-emerald-700" },
+  AUTO_REPLY_RECEIVED: { icon: Bot, className: "bg-slate-100 text-slate-600" },
+  AI_REPLY_SENT: { icon: Bot, className: "bg-cyan-100 text-cyan-700" },
   UNSUBSCRIBED: { icon: Ban, className: "bg-red-100 text-red-600" },
   TASK_CREATED: { icon: CheckSquare, className: "bg-violet-100 text-violet-700" },
   TASK_COMPLETED: { icon: CheckSquare, className: "bg-emerald-100 text-emerald-700" },

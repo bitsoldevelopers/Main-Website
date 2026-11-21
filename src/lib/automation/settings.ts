@@ -34,6 +34,21 @@ export interface OutreachSettings {
   sendWindowEnd: number;
   /** Spread each mailbox's daily limit evenly over the sending hours. */
   spreadEvenly: boolean;
+  /** Answering lead replies with AI (email/auto-reply.ts): off, a draft for a person, or sent. */
+  autoReplyMode: AutoReplyMode;
+  /** Minutes between reading a reply and answering it. */
+  autoReplyDelay: number;
+  /** AI answers per lead at most; after that a person takes over. */
+  autoReplyMax: number;
+  /** The owner's own instructions for the AI: offers, prices it may quote, what to avoid. */
+  autoReplyNotes: string;
+}
+
+export const AUTO_REPLY_MODES = ["off", "draft", "auto"] as const;
+export type AutoReplyMode = (typeof AUTO_REPLY_MODES)[number];
+
+export function isAutoReplyMode(value: unknown): value is AutoReplyMode {
+  return typeof value === "string" && (AUTO_REPLY_MODES as readonly string[]).includes(value);
 }
 
 export const DEFAULT_OUTREACH_SETTINGS: OutreachSettings = {
@@ -55,6 +70,10 @@ export const DEFAULT_OUTREACH_SETTINGS: OutreachSettings = {
   sendWindowStart: 10,
   sendWindowEnd: 22,
   spreadEvenly: true,
+  autoReplyMode: "off",
+  autoReplyDelay: 2,
+  autoReplyMax: 3,
+  autoReplyNotes: "",
 };
 
 const PREFIX = "outreach.";
@@ -94,6 +113,10 @@ export async function getOutreachSettings(): Promise<OutreachSettings> {
     sendWindowStart: clampInt(stored.get("sendWindowStart"), base.sendWindowStart, 0, 23),
     sendWindowEnd: clampInt(stored.get("sendWindowEnd"), base.sendWindowEnd, 1, 24),
     spreadEvenly: stored.has("spreadEvenly") ? stored.get("spreadEvenly") === "1" : base.spreadEvenly,
+    autoReplyMode: isAutoReplyMode(stored.get("autoReplyMode")) ? (stored.get("autoReplyMode") as AutoReplyMode) : base.autoReplyMode,
+    autoReplyDelay: clampInt(stored.get("autoReplyDelay"), base.autoReplyDelay, 0, 60),
+    autoReplyMax: clampInt(stored.get("autoReplyMax"), base.autoReplyMax, 1, 10),
+    autoReplyNotes: stored.get("autoReplyNotes") ?? base.autoReplyNotes,
   };
 }
 
@@ -116,6 +139,14 @@ function serialize(key: keyof OutreachSettings, raw: unknown): string {
       return raw ? "1" : "0";
     case "emailDesign":
       return isEmailDesign(raw) ? raw : d.emailDesign;
+    case "autoReplyMode":
+      return isAutoReplyMode(raw) ? raw : d.autoReplyMode;
+    case "autoReplyDelay":
+      return String(clampInt(raw, d.autoReplyDelay, 0, 60));
+    case "autoReplyMax":
+      return String(clampInt(raw, d.autoReplyMax, 1, 10));
+    case "autoReplyNotes":
+      return String(raw ?? "").trim().slice(0, 3000);
     default:
       return String(raw).trim();
   }

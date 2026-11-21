@@ -173,6 +173,48 @@ export function SenderSettingsForm({
             </Field>
           </div>
         </div>
+
+        <div className="space-y-4 rounded-md border border-slate-200 p-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Answer replies with AI</h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              The inboxes are read every 2 minutes while this is on. The AI reads each reply: automatic messages (&ldquo;we received your email&rdquo;, out
+              of office) get no answer and the sequence carries on; &ldquo;please stop&rdquo; unsubscribes the address; a person&apos;s question or interest
+              gets an answer from the mailbox they wrote to, in the same thread, using the chatbot&apos;s knowledge base. Every reply still stops the
+              sequence and creates a sales task, and the timeline shows what was sent.
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-3">
+            <Field label="Answering" htmlFor="auto-reply-mode">
+              <select id="auto-reply-mode" name="autoReplyMode" defaultValue={settings.autoReplyMode} className={selectClass}>
+                <option value="off">Off: a person answers</option>
+                <option value="draft">Suggest an answer on the timeline</option>
+                <option value="auto">Send the answer automatically</option>
+              </select>
+            </Field>
+            <Field label="Answer after (minutes)" htmlFor="auto-reply-delay" hint="After the reply is read.">
+              <input id="auto-reply-delay" name="autoReplyDelay" type="number" min={0} max={60} defaultValue={settings.autoReplyDelay} className={inputClass} />
+            </Field>
+            <Field label="AI answers per lead, at most" htmlFor="auto-reply-max" hint="Then a person takes over.">
+              <input id="auto-reply-max" name="autoReplyMax" type="number" min={1} max={10} defaultValue={settings.autoReplyMax} className={inputClass} />
+            </Field>
+          </div>
+          <Field
+            label="Instructions for the AI"
+            htmlFor="auto-reply-notes"
+            hint="Offers, starting prices it may quote, what to avoid. Without a price here it never quotes one and suggests a call instead."
+          >
+            <textarea
+              id="auto-reply-notes"
+              name="autoReplyNotes"
+              rows={4}
+              maxLength={3000}
+              defaultValue={settings.autoReplyNotes}
+              placeholder="e.g. Offer a free website audit. Mention that we reply on WhatsApp within the hour. Never promise delivery dates."
+              className={inputClass}
+            />
+          </Field>
+        </div>
       </fieldset>
       {canEdit ? (
         <div className="flex flex-wrap items-center gap-3">

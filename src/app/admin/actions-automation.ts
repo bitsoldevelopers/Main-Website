@@ -11,7 +11,7 @@ import { syncAutomationSteps, syncAutomationsOfSequence } from "@/lib/automation
 import { composeEmail, isEmailDesign, variablesIn, TEMPLATE_VARIABLES, type EmailDesign, type TemplateValues } from "@/lib/automation/email/render";
 import { enrollLead, markLeadReplied, pauseLead, resumeLead, stopRunsForLead } from "@/lib/automation/engine";
 import { refreshOutreachEmail } from "@/lib/automation/lead-contacts";
-import { getOutreachSettings, saveOutreachSettings, senderProblems } from "@/lib/automation/settings";
+import { getOutreachSettings, isAutoReplyMode, saveOutreachSettings, senderProblems } from "@/lib/automation/settings";
 import { isCryptoConfigured, randomToken } from "@/lib/automation/crypto";
 import { checkInboxNow, resetInboxSchedule, verifyImap } from "@/lib/automation/email/inbox";
 import { getMailboxCredentials, removeMailbox, saveMailbox, setTransport, type MailboxCredentials } from "@/lib/automation/email/mailbox";
@@ -106,6 +106,10 @@ export async function saveSenderSettings(_prev: FormState, formData: FormData): 
       sendWindowStart,
       sendWindowEnd,
       spreadEvenly: formData.get("spreadEvenly") === "on",
+      autoReplyMode: isAutoReplyMode(str(formData, "autoReplyMode")) ? (str(formData, "autoReplyMode") as "off" | "draft" | "auto") : "off",
+      autoReplyDelay: int(str(formData, "autoReplyDelay"), 2, 0, 60),
+      autoReplyMax: int(str(formData, "autoReplyMax"), 3, 1, 10),
+      autoReplyNotes: str(formData, "autoReplyNotes").slice(0, 3000),
     });
   } catch (err) {
     return failure(err);

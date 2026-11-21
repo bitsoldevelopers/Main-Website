@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { recordEmailEvent } from "./events";
 import { classifyMail } from "./inbox-parse";
 import { getMailboxSettings, getWatchedMailboxes, type MailboxCredentials } from "./mailbox";
+import { getOutreachSettings } from "../settings";
 import { errorText } from "./smtp";
 
 /**
@@ -26,6 +27,8 @@ function stateKeys(mailboxId: string): { validity: string; lastUid: string } {
 }
 
 const CHECK_EVERY_MS = 5 * 60_000;
+/** While replies are answered automatically: a reply should be answered within minutes. */
+const FAST_CHECK_MS = 2 * 60_000;
 /** After a failure (wrong password…): repeated failed logins can lock a mailbox. */
 const RETRY_AFTER_ERROR_MS = 60 * 60_000;
 const MAX_PER_PASS = 200;
@@ -50,6 +53,8 @@ export interface InboxReport {
 const state = globalThis as unknown as {
   __bitsolInboxNextAt?: number;
   __bitsolInboxRunning?: Promise<InboxReport> | null;
+  /** A mailbox whose last check failed is left alone until then; the others are read as usual. */
+  __bitsolInboxRetry?: Record<string, { until: number; error: string }>;
 };
 
 function client(creds: MailboxCredentials): ImapFlow {
@@ -154,7 +159,15 @@ export type InboundOutcome = "REPLY" | "BOUNCE" | "AUTO_REPLY" | "IGNORED";
  */
 export async function handleInboundMail(
   raw: string,
-  meta: { ownAddress: string | string[]; eventKey: string; receivedAt: Date }
+  meta: {
+    ownAddress: string | string[];
+    eventKey: string;
+    receivedAt: Date;
+    /** The mailbox it arrived in. */
+    mailbox?: string;
+    /** Set while replies are answered with AI: read the reply before stopping the sequence. */
+    triage?: { delayMinutes: number } | null;
+  }
 ): Promise<InboundOutcome> {
   const mail = classifyMail(raw);
   // Mail between our own mailboxes (tests, warm-up) is never a lead's reply.
@@ -171,7 +184,15 @@ export async function handleInboundMail(
       subject: mail.subject,
       inReplyTo: mail.outreachIds,
       occurredAt: meta.receivedAt,
-      payload: { source: "imap", from: mail.from, subject: mail.subject.slice(0, 300) },
+      payload: {
+        source: "imap",
+        from: mail.from,
+        subject: mail.subject.slice(0, 300),
+        text: mail.text ?? "",
+        ...(meta.mailbox ? { mailbox: meta.mailbox } : {}),
+        ...(mail.thread ? { thread: mail.thread } : {}),
+      },
+      ...(meta.triage ? { triage: meta.triage } : {}),
     });
     return result === "RECORDED" ? "REPLY" : "IGNORED";
   }
@@ -191,7 +212,7 @@ export async function handleInboundMail(
   return result === "RECORDED" && bounce.permanent ? "BOUNCE" : "IGNORED";
 }
 
-async function pass(creds: MailboxCredentials, ownAddresses: string[]): Promise<InboxReport> {
+async function pass(creds: MailboxCredentials, ownAddresses: string[], triage: { delayMinutes: number } | null): Promise<InboxReport> {
   const report: InboxReport = { at: new Date().toISOString(), ok: true, scanned: 0, replies: 0, bounces: 0, autoReplies: 0 };
   const imap = client(creds);
   try {
@@ -224,6 +245,8 @@ async function pass(creds: MailboxCredentials, ownAddresses: string[]): Promise<
             ownAddress: ownAddresses,
             eventKey: `${validity}:${msg.uid}`,
             receivedAt: msg.internalDate ? new Date(msg.internalDate) : new Date(),
+            mailbox: creds.user,
+            triage,
           });
           if (outcome === "REPLY") report.replies++;
           else if (outcome === "BOUNCE") report.bounces++;
@@ -280,11 +303,27 @@ export async function checkInboxNow(): Promise<InboxReport | null> {
   const watched = await getWatchedMailboxes();
   if (watched.length === 0) return null;
   const ownAddresses = settings.mailboxes.map((m) => m.user);
+  const outreach = await getOutreachSettings();
+  const triage = outreach.autoReplyMode === "off" ? null : { delayMinutes: outreach.autoReplyDelay };
+  const every = triage ? FAST_CHECK_MS : CHECK_EVERY_MS;
 
   const run = (async (): Promise<InboxReport> => {
     // One mailbox after another: a few seconds each, and no burst of logins.
     const reports: { user: string; report: InboxReport }[] = [];
-    for (const creds of watched) reports.push({ user: creds.user, report: await withTimeout(pass(creds, ownAddresses)) });
+    const retry = (state.__bitsolInboxRetry ??= {});
+    for (const creds of watched) {
+      const waiting = retry[creds.user];
+      if (waiting && waiting.until > Date.now()) {
+        const at = new Date(waiting.until + 5 * 3_600_000).toISOString().slice(11, 16);
+        reports.push({ user: creds.user, report: { at: new Date().toISOString(), ok: false, error: `${waiting.error} (tried again at ${at} Pakistan time)`, scanned: 0, replies: 0, bounces: 0, autoReplies: 0 } });
+        continue;
+      }
+      const report = await withTimeout(pass(creds, ownAddresses, triage));
+      // Repeated failed logins can lock a mailbox: a failing one waits, the others do not.
+      if (report.ok) delete retry[creds.user];
+      else retry[creds.user] = { until: Date.now() + RETRY_AFTER_ERROR_MS, error: report.error ?? "failed" };
+      reports.push({ user: creds.user, report });
+    }
     const failed = reports.filter((r) => !r.report.ok);
     const total: InboxReport = {
       at: new Date().toISOString(),
@@ -303,8 +342,7 @@ export async function checkInboxNow(): Promise<InboxReport | null> {
         bounces: r.report.bounces,
       })),
     };
-    // A failing mailbox slows the next check (failed logins can lock it); the others are read again then.
-    state.__bitsolInboxNextAt = Date.now() + (total.ok ? CHECK_EVERY_MS : RETRY_AFTER_ERROR_MS);
+    state.__bitsolInboxNextAt = Date.now() + every;
     await writeSetting(REPORT_KEY, JSON.stringify(total)).catch(() => undefined);
     return total;
   })();
@@ -320,11 +358,12 @@ export async function checkInboxNow(): Promise<InboxReport | null> {
 export async function checkInboxIfDue(): Promise<InboxReport | null> {
   if ((state.__bitsolInboxNextAt ?? 0) > Date.now()) return null;
   // Set before the pass so a slow or failing check is not retried every minute.
-  state.__bitsolInboxNextAt = Date.now() + CHECK_EVERY_MS;
+  state.__bitsolInboxNextAt = Date.now() + FAST_CHECK_MS;
   return checkInboxNow();
 }
 
-/** Saving new mailbox details: check again on the next pass. */
+/** Saving new mailbox details: check again on the next pass, the failing ones too. */
 export function resetInboxSchedule(): void {
   state.__bitsolInboxNextAt = 0;
+  state.__bitsolInboxRetry = {};
 }
